@@ -65,16 +65,16 @@ const EXAMPLES = [
   "how much memory is available?",
   "how many sockets are open?",
   /* parts of a whole over time — stacked */
-  "how is cpu time split between user, system and iowait?",
-  "how is memory split between used, cached and free?",
+  "how is cpu time split between user and system?",
+  "how is memory split: used, cached, free?",
   "how is cpu time split between busy and idle?",
   /* compared on one axis — overlay */
   "how much network traffic is there?",
   "how do packets in compare with packets out?",
-  "how do the 1, 5 and 15 minute load averages compare?",
+  "how do the load averages compare?",
   /* different magnitudes — split */
   "how many processes and threads are running?",
-  "what is the load average over 1, 5 and 15 minutes?",
+  "what are the 1, 5 and 15 minute loads?",
   "how do tcp and udp socket counts compare?",
   /* one reading per thing over time — heat */
   "how busy is each cpu core?",
@@ -82,7 +82,7 @@ const EXAMPLES = [
   /* one reading with a ceiling — gauge */
   "how full is the swap?",
   "what share of memory is in use?",
-  "how does the load average compare with the number of cores?",
+  "is the load average above the core count?",
   "how much of the cpu is idle right now?",
   /* a ranking — bars */
   "which processes use the most memory?",
@@ -91,12 +91,12 @@ const EXAMPLES = [
   "which processes have the most open files?",
   "which cpu core is the busiest right now?",
   /* parts of a whole now — pie */
-  "how many tcp connections are there, by state?",
-  "what share of memory do the top five processes hold?",
+  "how many tcp connections, by state?",
+  "what share of memory do the top five hold?",
   "how are processes split by state?",
   /* two properties of many things — scatter */
-  "how do processes compare on memory against threads?",
-  "how do processes compare on memory against open files?",
+  "memory against threads, per process?",
+  "memory against open files, per process?",
 ];
 const SHOWN = 3; /* bubbles on show at once */
 const ROTATE_MS = 10000; /* …and how often they move on */
@@ -114,6 +114,7 @@ const pack = (labels, widthPx, charPx) => {
   let used = 0;
   for (const label of labels) {
     const w = label.length * charPx + BUBBLE_PAD_PX;
+    if (w > widthPx) continue; /* would overflow even alone */
     if (row.length && used + BUBBLE_GAP_PX + w > widthPx) {
       rows.push(row);
       row = [];
