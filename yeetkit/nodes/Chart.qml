@@ -507,15 +507,20 @@ Item {
       var l = names.length ? root.series(names[0]) : []
       var cur = root.last(l), was = root.last(names.length ? root.prevSeries(names[0]) : [])
       var v = isFinite(cur) ? (isFinite(was) ? root.lerp(was, cur, root.t) : cur) : null
-      var figurePx = Math.max(Style.font.title, Math.min(Style.font.displayLarge, height * 0.34))
-      text(ctx, root.fmt(v), pad, pad + figurePx * 0.55, Color.popups.text, "left", figurePx)
+      /* The figure and its change sit centred, the sparkline in the
+       * lower third; on a taller tile the block floats to the middle. */
+      var figurePx = Math.max(Style.font.title, Math.min(Style.font.displayLarge, height * 0.3))
+      var sparkH = Math.max(24, height * 0.3)
+      var block = figurePx + captionPx * 1.8 + sparkH
+      var top = pad + Math.max(0, (height - pad * 2 - block) / 2)
+      text(ctx, root.fmt(v), width / 2, top + figurePx * 0.55, Color.popups.text, "center", figurePx)
       var first = l.length ? l[0] : null
       if (isFinite(first) && isFinite(cur) && first !== 0) {
         var change = (cur - first) / Math.abs(first) * 100
         var sign = change >= 0 ? "+" : "−"
-        text(ctx, sign + Math.abs(change).toFixed(change >= 10 ? 0 : 1) + "% over the window", pad, pad + figurePx + captionPx * 0.9, Color.popups.text)
+        text(ctx, sign + Math.abs(change).toFixed(change >= 10 ? 0 : 1) + "% over the window", width / 2, top + figurePx + captionPx * 0.9, Color.popups.text, "center")
       }
-      var y = pad + figurePx + captionPx * 1.8, h = height - y - pad
+      var y = top + figurePx + captionPx * 1.8, h = sparkH
       if (h < 12 || l.length < 2) return
       var x = pad, w = width - pad * 2
       var band = root.axis(l)

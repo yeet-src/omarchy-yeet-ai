@@ -43,7 +43,7 @@ const BAR_W = 4; /* braille cells for the bar item's sparkline: 8 samples */
 const WINDOW = 120; /* samples a chart is handed */
 const CARD_W = 400; /* px, one card's chart */
 const CARD_GAP = 12;
-const CHART_H = 120;
+const CHART_H = 180;
 const MAX_COLUMNS = 4;
 const CLOSE_W = 32; /* px the × button takes beside a heading */
 const CODE_H = 180; /* px of source shown before it scrolls */
@@ -529,21 +529,11 @@ export default function Page() {
       for (const name of v.order) series[name] = v.series[name].slice(-WINDOW);
       return JSON.stringify({ series });
     };
-    /* Every tile of a kind is the same height, whatever it holds: a
-     * ranking that gains a row, or a heat map a core, would otherwise
-     * move the whole grid row. A kind with many rows is the model's
-     * choice to make fit, and past the height it scrolls nothing — the
-     * chart draws its rows to fit. */
-    const height = () => {
-      const k = kind();
-      if (k === "stat") return 96;
-      if (k === "gauge") return 110;
-      if (k === "meters") return 130;
-      if (k === "bars" || k === "pie") return 180;
-      if (k === "heat" || k === "sparks") return 160;
-      if (k === "split") return 170;
-      return CHART_H;
-    };
+    /* Every chart is the same height, whatever its kind or content, so
+     * tiles in a grid row line up and a gauge or a stat sits centred in
+     * the same box a ranking fills — and a ranking that gains a row
+     * never moves the grid. */
+    const height = () => CHART_H;
     const drew = () => {
       const v = view();
       return v && (v.samples > 0 || v.bars || v.points);
