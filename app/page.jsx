@@ -166,6 +166,9 @@ export default function Page() {
    * zero until it says. The grid stops growing before it is clipped. */
   const [availW, setAvailW] = createSignal(0);
   const [availH, setAvailH] = createSignal(0);
+  /* The pixels the panel actually has: tiles are sized from it, so a
+   * display scale or a clamp never leaves a tile overhanging. */
+  const [panelW, setPanelW] = createSignal(0);
   const [open, setOpen] = createSignal(false);
   const [model, setModel] = createSignal(DEFAULT_MODEL);
   const examples = shuffle(EXAMPLES);
@@ -505,15 +508,17 @@ export default function Page() {
       return v && (v.samples > 0 || v.bars || v.points);
     };
     const attr = (name) => (typeof seg().attrs[name] === "string" ? seg().attrs[name] : "");
-    const heading = () => clip(card().question, props.cols - BUTTON_COLS * 2 - (single() ? 9 : 0));
 
     return (
       <column gap={2}>
-        <spacer width={CARD_W} height={1} />
+        <spacer width={props.width} height={1} />
+        <text bold wrap fill>{card().question}</text>
         <row gap={4}>
-          <text bold>{heading()}</text>
+          <Show when={seg()}>
+            <text>{seg().label || ""}</text>
+          </Show>
           <Show when={view() && single() && !view().bars && !view().points}>
-            <text heat={0.6}>{fmt(view().latest[view().order[0]], unit()).padStart(8)}</text>
+            <text heat={0.6}>{fmt(view().latest[view().order[0]], unit())}</text>
           </Show>
           <Show when={seg() && !seg().open}>
             <button
@@ -544,7 +549,7 @@ export default function Page() {
               min={attr("min")}
               max={attr("max")}
               unit={attr("unit")}
-              chartWidth={CARD_W}
+              chartWidth={props.width}
               chartHeight={height()}
             />
           </Show>
@@ -593,6 +598,7 @@ export default function Page() {
     return rows;
   };
   const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
+  const tileW = () => (panelW() > 0 ? Math.max(200, Math.floor((panelW() - (columns() - 1) * CARD_GAP) / columns())) : CARD_W);
   /* The character grid one tile gets: the panel's columns shared out. */
   const cardCols = () => Math.max(20, Math.floor((cols() - (columns() - 1) * 2) / columns()));
   const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
@@ -608,6 +614,7 @@ export default function Page() {
         gap={6}
         onCols={(e) => {
           setCols(e.cols);
+          if (e.width > 0) setPanelW(e.width);
           if (e.availableWidth > 0) setAvailW(e.availableWidth);
           if (e.availableHeight > 0) setAvailH(e.availableHeight);
         }}
@@ -724,7 +731,7 @@ export default function Page() {
             <Index each={grid()}>
               {(row) => (
                 <row gap={CARD_GAP}>
-                  <Index each={row()}>{(tile) => <Tile tile={tile} cols={cardCols()} />}</Index>
+                  <Index each={row()}>{(tile) => <Tile tile={tile} cols={cardCols()} width={tileW()} />}</Index>
                 </row>
               )}
             </Index>
