@@ -402,29 +402,32 @@ Item {
       })
     }
 
-    /* The latest value as an arc, 240 degrees from lo to hi. */
+    /* The latest value as an arc, 270 degrees from lo to hi, open at
+     * the bottom where the two figures sit. Sized from the height so it
+     * never leaves the tile. */
     function paintGauge(ctx) {
       var names = root.names()
       var l = names.length ? root.series(names[0]) : []
       var cur = root.last(l), was = root.last(names.length ? root.prevSeries(names[0]) : [])
       var v = isFinite(cur) ? (isFinite(was) ? root.lerp(was, cur, root.t) : cur) : null
       var band = root.axis(l)
-      var cx = width / 2, cy = height * 0.62
-      var r = Math.min(width / 2, height * 0.8) - 8
-      var start = Math.PI * (1 - 1 / 6) * 1 + Math.PI / 2 - Math.PI * (1 - 1 / 6)
+      var r = Math.min(width / 2 - pad, (height - pad * 2) * 0.52)
+      var cx = width / 2, cy = pad + r + (height - pad * 2 - r * 1.71) / 2
       var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25
       ctx.lineWidth = Math.max(6, r * 0.18)
       ctx.lineCap = "round"
-      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1)
+      ctx.beginPath(); ctx.arc(cx, cy, r - ctx.lineWidth / 2, a0, a1)
       ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.15)); ctx.stroke()
       if (v !== null) {
         var ratio = Math.max(0, Math.min(1, (v - band.lo) / ((band.hi - band.lo) || 1)))
-        ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * ratio)
-        ctx.strokeStyle = root.css(ratio > 0.85 ? Color.urgent : Color.accent); ctx.stroke()
+        if (ratio > 0) {
+          ctx.beginPath(); ctx.arc(cx, cy, r - ctx.lineWidth / 2, a0, a0 + (a1 - a0) * ratio)
+          ctx.strokeStyle = root.css(ratio > 0.85 ? Color.urgent : Color.accent); ctx.stroke()
+        }
       }
-      text(ctx, root.fmt(v), cx, cy - 2, Color.popups.text, "center", Style.font.title)
-      text(ctx, root.fmt(band.lo), cx - r * 0.72, cy + r * 0.72, Color.popups.text, "center")
-      text(ctx, root.fmt(band.hi), cx + r * 0.72, cy + r * 0.72, Color.popups.text, "center")
+      text(ctx, root.fmt(v), cx, cy, Color.popups.text, "center", Style.font.title)
+      text(ctx, root.fmt(band.lo), cx - r * 0.42, cy + r * 0.72, Color.popups.text, "center")
+      text(ctx, root.fmt(band.hi), cx + r * 0.42, cy + r * 0.72, Color.popups.text, "center")
     }
 
     function barValue(row, i) {

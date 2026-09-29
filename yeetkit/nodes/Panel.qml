@@ -9,6 +9,10 @@ import qs.Commons
 // shell's font is monospace, so a page that lays itself out as a
 // character grid needs this to know how wide to pad — it has no way to
 // measure text itself, and the width depends on the user's font size.
+// The same event carries `width` and `height`, the pixels the panel
+// has, and `availableWidth` and `availableHeight`, the most the shell
+// would give it on this screen — so a page that grows can stop before
+// it is clipped.
 //
 // `open` goes app -> shell: set it and the panel is shown or hidden.
 // `open`/`close` events go shell -> app, so a page can start a stream
@@ -39,7 +43,23 @@ Item {
     ? Math.max(1, Math.floor((width - Style.spacing.md * 2 - Style.normalBorderWidth * 2) / charWidth))
     : 0
 
-  onColsChanged: ev("cols", { cols: cols, boxCols: boxCols })
+  /* Set by the entry file from the shell's own limits. */
+  property real availableWidth: 0
+  property real availableHeight: 0
+
+  function report() {
+    ev("cols", {
+      cols: cols,
+      boxCols: boxCols,
+      width: width,
+      height: height,
+      availableWidth: availableWidth,
+      availableHeight: availableHeight
+    })
+  }
+  onColsChanged: report()
+  onAvailableWidthChanged: report()
+  onAvailableHeightChanged: report()
 
   property bool shown: false
   function shellOpened(isOpen) {

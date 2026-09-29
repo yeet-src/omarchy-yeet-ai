@@ -54,18 +54,50 @@ const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
  * afresh each time the panel opens; Enter on the empty input asks the
  * placeholder. */
 const EXAMPLES = [
+  /* one reading over time — area, line */
   "how busy is the cpu?",
-  "how busy is each cpu core?",
+  "how much memory is in use?",
+  "how many context switches per second?",
+  "how many processes are running?",
+  "how many interrupts per second?",
+  "how much memory is available?",
+  "how many sockets are open?",
+  /* parts of a whole over time — stacked */
+  "how is cpu time split between user, system and iowait?",
   "how is memory split between used, cached and free?",
-  "which processes use the most memory?",
+  "how is cpu time split between busy and idle?",
+  /* compared on one axis — overlay */
   "how much network traffic is there?",
-  "how full is the swap?",
-  "what is the load average over 1, 5 and 15 minutes?",
-  "how many tcp connections are there, by state?",
-  "how do processes compare on memory against threads?",
+  "how do packets in compare with packets out?",
+  "how do the 1, 5 and 15 minute load averages compare?",
+  /* different magnitudes — split */
   "how many processes and threads are running?",
+  "what is the load average over 1, 5 and 15 minutes?",
+  "how do tcp and udp socket counts compare?",
+  /* one reading per thing over time — heat */
+  "how busy is each cpu core?",
+  "how much traffic is on each network interface?",
+  /* one reading with a ceiling — gauge */
+  "how full is the swap?",
+  "what share of memory is in use?",
+  "how does the load average compare with the number of cores?",
+  "how much of the cpu is idle right now?",
+  /* a ranking — bars */
+  "which processes use the most memory?",
+  "which processes use the most cpu?",
+  "which processes have the most threads?",
+  "which processes have the most open files?",
+  "which processes have been running the longest?",
+  /* parts of a whole now — pie */
+  "how many tcp connections are there, by state?",
+  "what share of memory do the top five processes hold?",
+  "how are processes split by state?",
+  /* two properties of many things — scatter */
+  "how do processes compare on memory against threads?",
+  "how do processes compare on memory against open files?",
 ];
-const SHOWN = 3; /* bubbles on show at once, from the ten */
+const SHOWN = 3; /* bubbles on show at once */
+const ROTATE_MS = 10000; /* …and how often they move on */
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
 
@@ -130,12 +162,16 @@ export default function Page() {
   const [usage, setUsage] = createSignal(null);
   const [cards, setCards] = createSignal([]);
   const [cols, setCols] = createSignal(48);
+  /* The most the shell would give the panel on this screen, in pixels;
+   * zero until it says. The grid stops growing before it is clipped. */
+  const [availW, setAvailW] = createSignal(0);
+  const [availH, setAvailH] = createSignal(0);
   const [open, setOpen] = createSignal(false);
   const [model, setModel] = createSignal(DEFAULT_MODEL);
   const examples = shuffle(EXAMPLES);
   const [example, setExample] = createSignal(0);
-  /* The three from the current one on. Chosen once per opening of the
-   * panel — the next three each time — and still while it is open. */
+  /* The three from the current one on: the next three each time the
+   * panel opens, and every ten seconds while the zero state shows. */
   const shown = () => Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]);
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
@@ -198,9 +234,13 @@ export default function Page() {
   const spinner = setInterval(() => {
     if (busy()) setTick((n) => n + 1);
   }, 100);
+  const rotate = setInterval(() => {
+    if (open() && !cards().length && !draft()) setExample((i) => (i + SHOWN) % examples.length);
+  }, ROTATE_MS);
 
   onCleanup(() => {
     clearInterval(spinner);
+    clearInterval(rotate);
     for (const entry of cells.values()) entry.cell.release();
     cells.clear();
     agent.cancel().catch(() => {});
@@ -495,7 +535,7 @@ export default function Page() {
             <text size="caption" tone="accent">{`${spin()} writing…`}</text>
           </Show>
           <Show when={sources()[key()]}>
-            <text size="caption" wrap fill>{seg().script}</text>
+            <code source={seg().script} />
           </Show>
           <Show when={drew()}>
             <chart
@@ -539,8 +579,12 @@ export default function Page() {
     const n = tiles().length;
     if (!n) return 1;
     const wanted = layout() || Math.ceil(Math.sqrt(n));
-    return Math.max(1, Math.min(MAX_COLUMNS, wanted, n));
+    const fit = availW() > 0 ? Math.floor((availW() + CARD_GAP) / (CARD_W + CARD_GAP)) : MAX_COLUMNS;
+    return Math.max(1, Math.min(MAX_COLUMNS, wanted, n, fit));
   };
+  /* The grid scrolls within what the screen leaves under the input and
+   * the status line. */
+  const gridHeight = () => (availH() > 0 ? Math.max(240, availH() - 150) : 760);
   const grid = () => {
     const rows = [];
     const all = tiles();
@@ -562,7 +606,11 @@ export default function Page() {
       <panel
         contentWidth={panelWidth()}
         gap={6}
-        onCols={(e) => setCols(e.cols)}
+        onCols={(e) => {
+          setCols(e.cols);
+          if (e.availableWidth > 0) setAvailW(e.availableWidth);
+          if (e.availableHeight > 0) setAvailH(e.availableHeight);
+        }}
         onOpen={() => {
           setOpen(true);
           setExample((i) => (i + SHOWN) % examples.length);
@@ -670,7 +718,7 @@ export default function Page() {
         </Show>
 
         <Show when={tiles().length > 0}>
-          <scroll maxHeight={760} gap={CARD_GAP}>
+          <scroll maxHeight={gridHeight()} gap={CARD_GAP}>
             {/* <Index> keys by position and hands down an accessor, so a
                 streamed delta patches the one tile that changed. */}
             <Index each={grid()}>

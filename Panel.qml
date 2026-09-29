@@ -116,6 +116,10 @@ Panel {
     region.parent = content
     region.shellOpened(root.opened)
     region.openRequested.connect(function (wanted) { wanted ? root.open() : root.close() })
+    /* The most the shell would give the panel on this screen, so the
+     * page can size a grid to fit rather than be clipped. */
+    region.availableWidth = Qt.binding(function () { return panel.fittedContentWidth(1000000) })
+    region.availableHeight = Qt.binding(function () { return panel.fittedContentHeight(1000000) })
   }
 
   KeyboardPanel {
