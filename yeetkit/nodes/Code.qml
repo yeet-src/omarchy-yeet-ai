@@ -47,12 +47,16 @@ Item {
    * has no hue to turn, so those steps are in lightness alone. */
   readonly property var hueSteps: [0, 0.05, -0.06, 0.10, -0.12, 0.15, -0.18, 0.20]
   readonly property var lightSteps: [0, 0.16, -0.12, 0.24, -0.18, 0.08, -0.06, 0.18]
+  readonly property var greyLadder: [0, 0.58, 0.34, 0.76, 0.46, 0.88, 0.26, 0.66]
   function tone(i) {
     var a = Color.accent
     if (i === 0) return a
     var k = i % hueSteps.length
+    /* A monochrome accent may sit at either end of the lightness range,
+     * where steps from it would all clamp to one grey — so its series
+     * take a fixed ladder of greys, far enough apart to tell. */
+    if (a.hslSaturation < 0.12) return Qt.hsla(a.hslHue, a.hslSaturation, greyLadder[k], 1)
     var l = Math.max(0.28, Math.min(0.88, a.hslLightness + lightSteps[k]))
-    if (a.hslSaturation < 0.12) return Qt.hsla(a.hslHue, a.hslSaturation, l, 1)
     var hue = (a.hslHue + hueSteps[k] + 1) % 1
     return Qt.hsla(hue, Math.min(1, a.hslSaturation), l, 1)
   }
