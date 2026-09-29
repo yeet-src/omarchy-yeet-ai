@@ -97,14 +97,20 @@ const EXAMPLES = [
   /* two properties of many things — scatter */
   "memory against threads, per process?",
   "memory against open files, per process?",
-  /* several at once — a dashboard */
+];
+
+/* Whole dashboards — several charts from one question. One of these is
+ * always among the bubbles, so the grid is a suggestion too. */
+const DASHBOARDS = [
   "show me a dashboard of this host",
   "give me a network dashboard",
   "give me a memory dashboard",
   "give me a process dashboard",
   "show me everything about the cpu",
+  "give me a dashboard of the top processes",
+  "show me a dashboard of the load on this host",
 ];
-const SHOWN = 3; /* bubbles on show at once */
+const SHOWN = 2; /* single-chart bubbles on show at once, plus one dashboard */
 const ROTATE_MS = 10000; /* …and how often they move on */
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
@@ -177,10 +183,14 @@ export default function Page() {
   const [open, setOpen] = createSignal(false);
   const [model, setModel] = createSignal(DEFAULT_MODEL);
   const examples = shuffle(EXAMPLES);
+  const dashboards = shuffle(DASHBOARDS);
   const [example, setExample] = createSignal(0);
   /* The three from the current one on: the next three each time the
    * panel opens, and every ten seconds while the zero state shows. */
-  const shown = () => Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]);
+  const shown = () => [
+    ...Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]),
+    dashboards[Math.floor(example() / SHOWN) % dashboards.length],
+  ];
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
    * Until it is in, the status line says so and a question waits. */
