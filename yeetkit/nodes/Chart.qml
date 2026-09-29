@@ -162,6 +162,19 @@ Item {
   }
   function last(list) { return list.length ? list[list.length - 1] : null }
 
+  // ---- hover ----------------------------------------------------------
+
+  /* The point under the pointer, for a scatter: its label and both
+   * values in a small box beside it. */
+  property var hover: null
+  MouseArea {
+    anchors.fill: parent
+    hoverEnabled: true
+    acceptedButtons: Qt.NoButton
+    onPositionChanged: function (mouse) { root.hover = canvas.pick(mouse.x, mouse.y); canvas.requestPaint() }
+    onExited: { root.hover = null; canvas.requestPaint() }
+  }
+
   // ---- painting -------------------------------------------------------
 
   Canvas {
@@ -526,12 +539,42 @@ Item {
       })
     }
 
+    /* Where each point of a scatter lands, for painting and picking. */
+    property var placed: []
+
+    function pick(mx, my) {
+      var best = null, bestD = 100 /* px², a 10px reach */
+      for (var i = 0; i < placed.length; i++) {
+        var p = placed[i]
+        var d = (p.px - mx) * (p.px - mx) + (p.py - my) * (p.py - my)
+        if (d < bestD) { bestD = d; best = p }
+      }
+      return best
+    }
+
+    function tooltip(ctx, p) {
+      var label = (p.label ? p.label + "  " : "") + root.fmt(p.y) + " · x " + root.compact(p.x)
+      ctx.font = captionPx + "px " + family
+      var tw = ctx.measureText(label).width + 12
+      var th = captionPx + 10
+      var bx = Math.min(width - tw - 2, Math.max(2, p.px + 10))
+      var by = Math.max(2, p.py - th - 8)
+      ctx.fillStyle = root.css(root.alpha(Color.popups.background, 0.92))
+      roundRect(ctx, bx, by, tw, th, 4); ctx.fill()
+      ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.6)); ctx.lineWidth = 1
+      roundRect(ctx, bx + 0.5, by + 0.5, tw - 1, th - 1, 4); ctx.stroke()
+      text(ctx, label, bx + 6, by + th / 2, Color.popups.text)
+      ctx.beginPath(); ctx.arc(p.px, p.py, 5, 0, Math.PI * 2)
+      ctx.strokeStyle = root.css(Color.accent); ctx.lineWidth = 2; ctx.stroke()
+    }
+
     /* Points on two axes, framed to the data unless fixed. */
     function paintScatter(ctx) {
       var pts = root.shown.points
       var x = pad + 2, y = pad, w = width - pad * 2 - 2, h = height - pad * 2
       var xs = pts.map(function (p) { return p.x }), ys = pts.map(function (p) { return p.y })
       var bx = root.axis(xs.filter(isFinite)), by = root.axis(ys.filter(isFinite))
+      var landed = []
       frame(ctx, x, y, w, h, by)
       text(ctx, root.fmt(bx.lo), x + 2, y + h - captionPx * 0.7 - 12, root.alpha(Color.popups.text, 0.6))
       text(ctx, root.fmt(bx.hi), x + w - 2, y + h - captionPx * 0.7, root.alpha(Color.popups.text, 0.85), "right")
@@ -539,9 +582,12 @@ Item {
         if (!isFinite(p.x) || !isFinite(p.y)) return
         var px = x + Math.max(0, Math.min(1, (p.x - bx.lo) / ((bx.hi - bx.lo) || 1))) * w
         var py = yOf(p.y, by, y, h)
+        landed.push({ px: px, py: py, x: p.x, y: p.y, label: p.label })
         ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2)
         ctx.fillStyle = root.css(root.alpha(Color.accent, 0.75 * (root.first ? root.t : 1))); ctx.fill()
       })
+      placed = landed
+      if (root.hover) tooltip(ctx, root.hover)
     }
   }
 }
