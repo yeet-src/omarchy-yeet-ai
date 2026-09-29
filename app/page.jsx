@@ -106,7 +106,10 @@ const graph = {
 const num = (v) => (v === undefined || v === null || v === true ? NaN : Number(v));
 /* What the platform says when this host has no login: no token, or one
  * it rejects. Charts do not need one; asking does. */
-const authError = (e) => /access token|not logged in|logged out|unauthori[sz]ed|forbidden/i.test(String(e?.message ?? e ?? ""));
+const authError = (e) =>
+  /WHOAMI_NOT_SET|WhoAmI is not set|access token|not logged in|logged out|unauthori[sz]ed|forbidden/i.test(
+    `${e?.code ?? ""} ${e?.message ?? e ?? ""}`,
+  );
 const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const isChart = (seg) => seg.kind === "block" && seg.name === "chart";
