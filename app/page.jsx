@@ -401,14 +401,35 @@ export default function Page() {
 
   const toggleSource = (key) => setSources((all) => ({ ...all, [key]: !all[key] }));
 
-  /* One chart: a header line, then the drawn chart. `props.seg` is the
-   * block's accessor from <Index>, so a re-parse patches the label and
-   * the cell lookup follows the block's key. The drawing is the shell's
-   * <chart> node: this only hands it the data and the kind. */
-  const Chart = (props) => {
-    const seg = () => props.seg();
-    const key = () => cellKey(props.cardId, seg());
-    const view = () => entryOf(props.cardId, seg())?.view() ?? null;
+  /* The grid is one, over every chart from every question: a tile per
+   * chart block, and a tile for a question still thinking or answered
+   * without a chart. */
+  const tiles = () => {
+    const out = [];
+    for (const card of cards()) {
+      const segments = parse(card.text);
+      const charts = segments.filter(isChart);
+      const prose = segments
+        .filter((seg) => seg.kind === "text")
+        .map((seg) => seg.text)
+        .join(" ");
+      if (!charts.length) out.push({ card, seg: null, prose });
+      else for (const seg of charts) out.push({ card, seg, prose });
+    }
+    return out;
+  };
+
+  /* One tile: the question as its heading, the drawn chart, and under
+   * it the model's one sentence. `props.tile` is the accessor from
+   * <Index>, so a re-parse patches in place and the cell lookup follows
+   * the block's key. The drawing is the shell's <chart> node: this only
+   * hands it the data and the kind. */
+  const Tile = (props) => {
+    const tile = () => props.tile();
+    const card = () => tile().card;
+    const seg = () => tile().seg;
+    const key = () => cellKey(card().id, seg());
+    const view = () => (seg() ? entryOf(card().id, seg())?.view() ?? null : null);
     const unit = () => seg().attrs.unit;
     const single = () => view()?.order.length === 1;
     const shape = () => (view()?.points ? "points" : view()?.bars ? "rows" : "series");
@@ -443,18 +464,17 @@ export default function Page() {
       return v && (v.samples > 0 || v.bars || v.points);
     };
     const attr = (name) => (typeof seg().attrs[name] === "string" ? seg().attrs[name] : "");
+    const heading = () => clip(card().question, props.cols - BUTTON_COLS * 2 - (single() ? 9 : 0));
 
     return (
       <column gap={2}>
+        <spacer width={CARD_W} height={1} />
         <row gap={4}>
-          <Show
-            when={view() && single() && !view().bars && !view().points}
-            fallback={<text bold>{clip(seg().label || "chart", props.cols - BUTTON_COLS)}</text>}
-          >
-            <text bold>{clip(seg().label || "chart", props.cols - BUTTON_COLS - 9)}</text>
+          <text bold>{heading()}</text>
+          <Show when={view() && single() && !view().bars && !view().points}>
             <text heat={0.6}>{fmt(view().latest[view().order[0]], unit()).padStart(8)}</text>
           </Show>
-          <Show when={!seg().open}>
+          <Show when={seg() && !seg().open}>
             <button
               horizontalPadding={4}
               verticalPadding={0}
@@ -464,69 +484,42 @@ export default function Page() {
               src
             </button>
           </Show>
-        </row>
-
-        <Show when={seg().open}>
-          <text size="caption" tone="accent">{`${spin()} writing…`}</text>
-        </Show>
-        <Show when={sources()[key()]}>
-          <text size="caption" wrap fill>{seg().script}</text>
-        </Show>
-
-        <Show when={drew()}>
-          <chart
-            kind={kind()}
-            payload={payload()}
-            min={attr("min")}
-            max={attr("max")}
-            unit={attr("unit")}
-            chartWidth={CARD_W}
-            chartHeight={height()}
-          />
-        </Show>
-
-        <Show when={view()?.error}>
-          <text size="caption" tone="urgent" wrap fill>{view().error}</text>
-        </Show>
-        <Show when={view() && !drew() && !view().error && !seg().open}>
-          <text size="caption" tone="accent">{`${spin()} waiting for data…`}</text>
-        </Show>
-      </column>
-    );
-  };
-
-  /* One card: the question, the prose, its charts. Pinned to the card
-   * width by a spacer, so a card still thinking is as wide as one that
-   * has drawn and the grid holds. */
-  const Card = (props) => {
-    const card = () => props.card();
-    return (
-      <column gap={2}>
-        <spacer width={CARD_W} height={1} />
-        <row gap={4}>
-          <text bold>{clip(`;; ${card().question}`, props.cols - BUTTON_COLS)}</text>
-          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this chart" onClick={() => remove(card().id)}>
+          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this question" onClick={() => remove(card().id)}>
             ×
           </button>
         </row>
 
-        <Index each={parse(card().text)}>
-          {(seg) => (
-            <Show
-              when={isChart(seg())}
-              fallback={
-                <text size="bodySmall" wrap fill>
-                  {seg().kind === "text" ? seg().text : seg().script}
-                </text>
-              }
-            >
-              <Chart seg={seg} cardId={card().id} cols={props.cols} />
-            </Show>
-          )}
-        </Index>
+        <Show when={seg()}>
+          <Show when={seg().open}>
+            <text size="caption" tone="accent">{`${spin()} writing…`}</text>
+          </Show>
+          <Show when={sources()[key()]}>
+            <text size="caption" wrap fill>{seg().script}</text>
+          </Show>
+          <Show when={drew()}>
+            <chart
+              kind={kind()}
+              payload={payload()}
+              min={attr("min")}
+              max={attr("max")}
+              unit={attr("unit")}
+              chartWidth={CARD_W}
+              chartHeight={height()}
+            />
+          </Show>
+          <Show when={view()?.error}>
+            <text size="caption" tone="urgent" wrap fill>{view().error}</text>
+          </Show>
+          <Show when={view() && !drew() && !view().error && !seg().open}>
+            <text size="caption" tone="accent">{`${spin()} waiting for data…`}</text>
+          </Show>
+        </Show>
 
-        <Show when={!card().done && !card().text}>
+        <Show when={!card().done && !seg()}>
           <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
+        </Show>
+        <Show when={tile().prose}>
+          <text size="caption" wrap fill>{tile().prose}</text>
         </Show>
         <Show when={card().error}>
           <text size="caption" tone="urgent" wrap fill>{card().error}</text>
@@ -538,24 +531,24 @@ export default function Page() {
     );
   };
 
-  /* The grid: as many columns as the layout says, else the square root
-   * of the card count — 1, then 2 from the second card, 3 from the
-   * fifth, 4 from the tenth. The panel widens to hold them. */
+  /* Columns: what the layout says, else the square root of the tile
+   * count — 1, then 2 from the second tile, 3 from the fifth, 4 from
+   * the tenth. The panel widens to hold them. */
   const columns = () => {
-    const n = cards().length;
+    const n = tiles().length;
     if (!n) return 1;
     const wanted = layout() || Math.ceil(Math.sqrt(n));
     return Math.max(1, Math.min(MAX_COLUMNS, wanted, n));
   };
   const grid = () => {
     const rows = [];
-    const all = cards();
+    const all = tiles();
     const per = columns();
     for (let i = 0; i < all.length; i += per) rows.push(all.slice(i, i + per));
     return rows;
   };
   const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
-  /* The character grid one card gets: the panel's columns shared out. */
+  /* The character grid one tile gets: the panel's columns shared out. */
   const cardCols = () => Math.max(20, Math.floor((cols() - (columns() - 1) * 2) / columns()));
   const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
 
@@ -612,7 +605,7 @@ export default function Page() {
             >
               {`${model()} ${picking() ? "▴" : "▾"}`}
             </button>
-            <Show when={cards().length > 1}>
+            <Show when={tiles().length > 1}>
               <button
                 horizontalPadding={4}
                 verticalPadding={0}
@@ -675,20 +668,15 @@ export default function Page() {
           </column>
         </Show>
 
-        <Show when={cards().length > 0}>
-          <scroll maxHeight={720} gap={6}>
+        <Show when={tiles().length > 0}>
+          <scroll maxHeight={760} gap={CARD_GAP}>
             {/* <Index> keys by position and hands down an accessor, so a
-                streamed delta patches the one card that changed. */}
+                streamed delta patches the one tile that changed. */}
             <Index each={grid()}>
-              {(row, r) => (
-                <column gap={4}>
-                  <Show when={r > 0}>
-                    <separator />
-                  </Show>
-                  <row gap={CARD_GAP}>
-                    <Index each={row()}>{(card) => <Card card={card} cols={cardCols()} />}</Index>
-                  </row>
-                </column>
+              {(row) => (
+                <row gap={CARD_GAP}>
+                  <Index each={row()}>{(tile) => <Tile tile={tile} cols={cardCols()} />}</Index>
+                </row>
               )}
             </Index>
           </scroll>
