@@ -246,17 +246,25 @@ Item {
       ctx.fill()
     }
 
+    /* Right-aligned, after the axis figure. Entries that do not fit
+     * lose their figures first, then the tail is cut. */
     function legend(ctx, entries, x, y, w) {
       ctx.font = captionPx + "px " + family
+      var room = w - 44
+      var widthOf = function (key) {
+        return entries.reduce(function (sum, e) { return sum + ctx.measureText(e[key]).width + 19 }, 0)
+      }
+      var key = widthOf("text") <= room ? "text" : "name"
+      var shown = entries.slice()
+      while (shown.length > 1 && shown.reduce(function (sum, e) { return sum + ctx.measureText(e[key]).width + 19 }, 0) > room) shown.pop()
       var cx = x + w
-      for (var i = entries.length - 1; i >= 0; i--) {
-        var label = entries[i].text
-        var tw = ctx.measureText(label).width
-        cx -= tw
+      for (var i = shown.length - 1; i >= 0; i--) {
+        var label = shown[i][key]
+        cx -= ctx.measureText(label).width
         text(ctx, label, cx, y, Color.popups.text)
         cx -= 9
         ctx.beginPath(); ctx.arc(cx + 2, y, 3, 0, Math.PI * 2)
-        ctx.fillStyle = root.css(entries[i].color); ctx.fill()
+        ctx.fillStyle = root.css(shown[i].color); ctx.fill()
         cx -= 10
       }
     }
@@ -276,6 +284,9 @@ Item {
         }
       } else lists.forEach(function (l) { all = all.concat(l) })
       var band = root.axis(all)
+      /* Bands of a whole stand on zero: framed on their own min–max the
+       * lower bands would be clipped away. */
+      if (stacked && !(root.min !== "" && isFinite(Number(root.min)))) band.lo = 0
       frame(ctx, x, y, w, h, band)
       ctx.save()
       ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
@@ -327,7 +338,7 @@ Item {
 
       if (names.length > 1 || stacked) {
         legend(ctx, names.map(function (name, si) {
-          return { text: name + " " + root.fmt(root.last(root.series(name))), color: root.tone(si) }
+          return { name: name, text: name + " " + root.fmt(root.last(root.series(name))), color: root.tone(si) }
         }), x, y + captionPx * 0.7, w - 2)
       }
     }
