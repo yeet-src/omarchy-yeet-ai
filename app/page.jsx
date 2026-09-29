@@ -559,7 +559,7 @@ export default function Page() {
               tooltipText={sources()[key()] ? "Hide the source" : "Show the source the model wrote"}
               onClick={() => toggleSource(key())}
             >
-              src
+              {sources()[key()] ? "hide" : "src"}
             </button>
           </Show>
         </row>
