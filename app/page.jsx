@@ -4,7 +4,7 @@ import { runTool, stream } from "yeet:ai";
 import { createAgent } from "./agent.js";
 import { createCell } from "./cells.js";
 import { keyOf, parse } from "./directive.js";
-import { axis, braille, clip, fmt } from "./draw.js";
+import { axis, braille, fmt } from "./draw.js";
 import { SYSTEM, context, repair, withSchema } from "./prompt.js";
 import { loadSchema } from "./schema.js";
 import { createTools } from "./tools.js";
@@ -45,6 +45,7 @@ const CARD_W = 400; /* px, one card's chart */
 const CARD_GAP = 12;
 const CHART_H = 120;
 const MAX_COLUMNS = 4;
+const CLOSE_W = 32; /* px the × button takes beside a heading */
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
 const MAX_REPAIRS = 2;
 const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
@@ -149,11 +150,6 @@ const authError = (e) =>
 const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const isChart = (seg) => seg.kind === "block" && seg.name === "chart";
-/* A header line shares its row with a small button, so it is padded to
- * the grid less the button's room. Rows are laid out by hand rather
- * than with `fill`: a text alone filling a row has no height until the
- * row is laid out, and the panel measures before that. */
-const BUTTON_COLS = 6;
 
 export default function Page() {
   const [draft, setDraft] = createSignal("");
@@ -512,7 +508,14 @@ export default function Page() {
     return (
       <column gap={2}>
         <spacer width={props.width} height={1} />
-        <text bold wrap fill>{card().question}</text>
+        {/* The heading wraps beside the remove button: an explicit width,
+            since a text filling a row has no height until laid out. */}
+        <row gap={4}>
+          <text bold wrap width={props.width - CLOSE_W}>{card().question}</text>
+          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this question" onClick={() => remove(card().id)}>
+            ×
+          </button>
+        </row>
         <row gap={4}>
           <Show when={seg()}>
             <text>{seg().label || ""}</text>
@@ -530,9 +533,6 @@ export default function Page() {
               src
             </button>
           </Show>
-          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this question" onClick={() => remove(card().id)}>
-            ×
-          </button>
         </row>
 
         <Show when={seg()}>
@@ -599,8 +599,6 @@ export default function Page() {
   };
   const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
   const tileW = () => (panelW() > 0 ? Math.max(200, Math.floor((panelW() - (columns() - 1) * CARD_GAP) / columns())) : CARD_W);
-  /* The character grid one tile gets: the panel's columns shared out. */
-  const cardCols = () => Math.max(20, Math.floor((cols() - (columns() - 1) * 2) / columns()));
   const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
 
   return (
@@ -731,7 +729,7 @@ export default function Page() {
             <Index each={grid()}>
               {(row) => (
                 <row gap={CARD_GAP}>
-                  <Index each={row()}>{(tile) => <Tile tile={tile} cols={cardCols()} width={tileW()} />}</Index>
+                  <Index each={row()}>{(tile) => <Tile tile={tile} width={tileW()} />}</Index>
                 </row>
               )}
             </Index>
