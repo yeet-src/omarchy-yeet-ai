@@ -529,15 +529,19 @@ export default function Page() {
       for (const name of v.order) series[name] = v.series[name].slice(-WINDOW);
       return JSON.stringify({ series });
     };
+    /* Every tile of a kind is the same height, whatever it holds: a
+     * ranking that gains a row, or a heat map a core, would otherwise
+     * move the whole grid row. A kind with many rows is the model's
+     * choice to make fit, and past the height it scrolls nothing — the
+     * chart draws its rows to fit. */
     const height = () => {
-      const v = view();
-      if (!v) return CHART_H;
-      if (v.bars) return Math.max(60, Math.min(260, 22 * v.bars.length + 8));
-      if (kind() === "split") return Math.max(CHART_H, 56 * v.order.length);
-      if (kind() === "heat") return Math.max(60, Math.min(260, 16 * v.order.length + 8));
-      if (kind() === "stat") return 96;
-      if (kind() === "sparks") return Math.max(60, Math.min(300, 26 * v.order.length + 8));
-      if (kind() === "meters") return 130;
+      const k = kind();
+      if (k === "stat") return 96;
+      if (k === "gauge") return 110;
+      if (k === "meters") return 130;
+      if (k === "bars" || k === "pie") return 180;
+      if (k === "heat" || k === "sparks") return 160;
+      if (k === "split") return 170;
       return CHART_H;
     };
     const drew = () => {
