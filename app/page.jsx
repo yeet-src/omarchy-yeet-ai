@@ -61,10 +61,31 @@ const EXAMPLES = [
   "number of processes and threads",
 ];
 const EXAMPLE_MS = 4000;
+const SHOWN = 3; /* bubbles on show at once, from the ten */
 
-const HINT =
-  "Enter asks the example shown, or type your own. The model writes a subscription "
-  + "over the system graph and the panel draws what arrives.";
+const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
+
+/* Bubbles packed into rows by their text width, so a row holds as many
+ * as the grid allows. Each bubble spends its label plus this much on
+ * padding. */
+const BUBBLE_PAD = 4;
+const pack = (labels, cols) => {
+  const rows = [];
+  let row = [];
+  let used = 0;
+  for (const label of labels) {
+    const w = label.length + BUBBLE_PAD;
+    if (row.length && used + w > cols) {
+      rows.push(row);
+      row = [];
+      used = 0;
+    }
+    row.push(label);
+    used += w;
+  }
+  if (row.length) rows.push(row);
+  return rows;
+};
 
 /* A random order, so two panels do not start on the same question. */
 const shuffle = (list) => {
@@ -103,6 +124,9 @@ export default function Page() {
   const [model, setModel] = createSignal(DEFAULT_MODEL);
   const examples = shuffle(EXAMPLES);
   const [example, setExample] = createSignal(0);
+  /* The three from the current one on, so the bubbles move with the
+   * placeholder. */
+  const shown = () => Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]);
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
    * Until it is in, the status line says so and a question waits. */
@@ -265,8 +289,8 @@ export default function Page() {
     await doctor(id);
   };
 
-  const submit = async () => {
-    const question = draft().trim();
+  const submit = async (asked) => {
+    const question = (asked ?? draft()).trim();
     if (!question || busy()) return;
     setDraft("");
 
@@ -525,8 +549,29 @@ export default function Page() {
           </column>
         </Show>
 
+        {/* The zero state: every example as a bubble, a click asks it. */}
         <Show when={!cards().length}>
-          <text size="bodySmall" wrap fill>{HINT}</text>
+          <column gap={4}>
+            <text size="bodySmall" wrap fill>{HINT}</text>
+            <Index each={pack(shown(), cols())}>
+              {(bubbles) => (
+                <row gap={4}>
+                  <Index each={bubbles()}>
+                    {(question) => (
+                      <button
+                        bordered
+                        horizontalPadding={6}
+                        verticalPadding={2}
+                        onClick={() => submit(question()).catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`))}
+                      >
+                        {question()}
+                      </button>
+                    )}
+                  </Index>
+                </row>
+              )}
+            </Index>
+          </column>
         </Show>
 
         <Show when={cards().length > 0}>
