@@ -31,6 +31,17 @@ Column {
   property string failure: ""
   property bool copied: false
 
+  /* A spinner turns while the process runs: first for the code, then
+   * for the login to finish in the browser. */
+  readonly property var frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+  property int frame: 0
+  property Timer spin: Timer {
+    interval: 100
+    repeat: true
+    running: root.login.running
+    onTriggered: root.frame = (root.frame + 1) % root.frames.length
+  }
+
   property Process login: Process {
     command: ["yeet", "login"]
     /* The URL comes after a QR code drawn in escape sequences; the one
@@ -75,42 +86,45 @@ Column {
   Component.onCompleted: login.running = true
   Component.onDestruction: if (login.running) login.signal(15)
 
-  Text {
+  Row {
     width: root.width
-    wrapMode: Text.WordWrap
-    text: root.url !== "" ? "Log in at"
-        : root.failure !== "" ? root.failure
-        : "Getting a login code…"
-    color: root.failure !== "" && root.url === "" ? Color.urgent : Color.popups.text
-    font.family: Style.font.family
-    font.pixelSize: Style.font.bodySmall
-  }
+    spacing: Style.spacing.sm
 
-  TextEdit {
-    id: field
-    width: root.width
-    visible: root.url !== ""
-    readOnly: true
-    selectByMouse: true
-    textFormat: TextEdit.PlainText
-    wrapMode: TextEdit.WrapAnywhere
-    text: root.url
-    color: Color.accent
-    font.family: Style.font.family
-    font.pixelSize: Style.font.body
+    Text {
+      visible: root.login.running
+      text: root.frames[root.frame]
+      color: Color.accent
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+    }
+
+    /* The URL is a link: clicking it opens the browser. */
+    Text {
+      width: root.width - (root.login.running ? x : 0)
+      wrapMode: Text.WrapAnywhere
+      textFormat: root.url !== "" ? Text.StyledText : Text.PlainText
+      text: root.url !== "" ? "<a href=\"" + root.url + "\">" + root.url + "</a>"
+          : root.failure !== "" ? root.failure
+          : "Getting a login code…"
+      color: root.failure !== "" && root.url === "" ? Color.urgent : Color.popups.text
+      linkColor: Color.accent
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      onLinkActivated: function (link) { root.openUrl() }
+      HoverHandler { cursorShape: root.url !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
+    }
   }
 
   Row {
     visible: root.url !== ""
     spacing: Style.spacing.sm
 
-    Button {
-      text: "open"
-      fontSize: Style.font.bodySmall
-      horizontalPadding: Style.spacing.sm
-      verticalPadding: 0
-      tooltipText: "Open the login page in the browser"
-      onClicked: root.openUrl()
+    Text {
+      text: "Waiting for the login to finish in the browser."
+      color: Color.popups.text
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+      anchors.verticalCenter: parent.verticalCenter
     }
 
     Button {
@@ -121,5 +135,14 @@ Column {
       tooltipText: "Copy the URL to the clipboard"
       onClicked: root.copyUrl()
     }
+  }
+
+  /* Off-screen: the clipboard is reached through TextEdit.copy(), which
+   * wants a selection, so the URL is held here for `copy` to select. */
+  TextEdit {
+    id: field
+    visible: false
+    readOnly: true
+    text: root.url
   }
 }
