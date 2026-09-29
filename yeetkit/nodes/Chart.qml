@@ -383,13 +383,14 @@ Item {
       }
       lists.forEach(function (l, si) { head(ctx, l, band, x, y, w, h, root.tone(si)) })
       ctx.restore()
-      hoverTime(ctx, names, lists, band, x, y, w, h, stacked)
 
       if (names.length > 1 || stacked) {
         legend(ctx, names.map(function (name, si) {
           return { name: name, text: name + " " + root.fmt(root.last(root.series(name))), color: root.tone(si) }
         }), x, y - captionPx * 0.6 - 2, w - 2)
       }
+      /* Last, so it sits over the legend and the axis figures. */
+      hoverTime(ctx, names, lists, band, x, y, w, h, stacked)
     }
 
     /* One strip per series, each framed on its own band. */
@@ -766,6 +767,18 @@ Item {
         ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, 0, Math.PI * 2)
         ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.15)); ctx.stroke()
       }
+      var lx = cx + r + 12
+      var lineH = Math.min(18, (height - pad * 2) / Math.max(1, rows.length))
+      var ly = height / 2 - lineH * (rows.length - 1) / 2
+      rows.forEach(function (row, i) {
+        var pct = total > 0 ? Math.round(100 * Math.max(0, Number(row.value) || 0) / rows.reduce(function (s, q) { return s + Math.max(0, Number(q.value) || 0) }, 0)) : 0
+        ctx.beginPath(); ctx.arc(lx + 3, ly + lineH * i, 3.5, 0, Math.PI * 2)
+        ctx.fillStyle = root.css(root.tone(i)); ctx.fill()
+        ctx.save(); ctx.beginPath(); ctx.rect(lx + 10, 0, width - lx - 10 - pad, height); ctx.clip()
+        text(ctx, String(row.label) + "  " + pct + "%", lx + 12, ly + lineH * i, Color.popups.text)
+        ctx.restore()
+      })
+      /* Last, so it sits over the legend. */
       var hv = root.hover
       if (hv && total > 0) {
         var dx = hv.x - cx, dy = hv.y - cy
@@ -791,17 +804,6 @@ Item {
           }
         }
       }
-      var lx = cx + r + 12
-      var lineH = Math.min(18, (height - pad * 2) / Math.max(1, rows.length))
-      var ly = height / 2 - lineH * (rows.length - 1) / 2
-      rows.forEach(function (row, i) {
-        var pct = total > 0 ? Math.round(100 * Math.max(0, Number(row.value) || 0) / rows.reduce(function (s, q) { return s + Math.max(0, Number(q.value) || 0) }, 0)) : 0
-        ctx.beginPath(); ctx.arc(lx + 3, ly + lineH * i, 3.5, 0, Math.PI * 2)
-        ctx.fillStyle = root.css(root.tone(i)); ctx.fill()
-        ctx.save(); ctx.beginPath(); ctx.rect(lx + 10, 0, width - lx - 10 - pad, height); ctx.clip()
-        text(ctx, String(row.label) + "  " + pct + "%", lx + 12, ly + lineH * i, Color.popups.text)
-        ctx.restore()
-      })
     }
 
     /* Where each point of a scatter lands, for painting and picking. */
@@ -829,7 +831,7 @@ Item {
       var bx = px + 12 + tw > width - 2 ? px - 12 - tw : px + 12
       bx = Math.max(2, Math.min(width - tw - 2, bx))
       var by = Math.max(2, Math.min(height - th - 2, py - th / 2))
-      ctx.fillStyle = root.css(root.alpha(Color.popups.background, 0.94))
+      ctx.fillStyle = root.css(Color.popups.background)
       roundRect(ctx, bx, by, tw, th, 4); ctx.fill()
       ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.6)); ctx.lineWidth = 1
       roundRect(ctx, bx + 0.5, by + 0.5, tw - 1, th - 1, 4); ctx.stroke()
