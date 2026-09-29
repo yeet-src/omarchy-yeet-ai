@@ -45,9 +45,10 @@ const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is lef
 const MAX_REPAIRS = 2;
 const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
 
-/* Questions the empty input cycles through as its placeholder, each one
- * checked to come back as a chart that draws. Enter on the empty input
- * asks the one showing. */
+/* Example questions, each checked to come back as a chart that draws.
+ * Three are shown as bubbles, one of them as the placeholder, chosen
+ * afresh each time the panel opens; Enter on the empty input asks the
+ * placeholder. */
 const EXAMPLES = [
   "cpu usage",
   "cpu split into user, system and iowait",
@@ -431,7 +432,7 @@ export default function Page() {
         </row>
 
         <Show when={seg().open}>
-          <text size="caption">{`${spin()} writing…`}</text>
+          <text size="caption" tone="accent">{`${spin()} writing…`}</text>
         </Show>
         <Show when={sources()[key()]}>
           <text size="caption" wrap fill>{seg().script}</text>
@@ -518,7 +519,7 @@ export default function Page() {
           >
             {`${model()} ${picking() ? "▴" : "▾"}`}
           </button>
-          <text size="caption">{statusLine()}</text>
+          <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
           <Show when={busy()}>
             <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
               stop
@@ -603,7 +604,7 @@ export default function Page() {
                 </Index>
 
                 <Show when={!card().done && !card().text}>
-                  <text size="caption">{`${spin()} ${status()}`}</text>
+                  <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
                 </Show>
                 <Show when={card().error}>
                   <text size="caption" tone="urgent" wrap fill>{card().error}</text>
