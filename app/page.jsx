@@ -102,23 +102,24 @@ const ROTATE_MS = 10000; /* …and how often they move on */
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
 
-/* Bubbles packed into rows by their text width, so a row holds as many
- * as the grid allows. Each bubble spends its label plus this much on
- * padding. */
-const BUBBLE_PAD = 4;
-const pack = (labels, cols) => {
+/* Bubbles packed into rows by their width in pixels: the label at the
+ * panel's measured character width, plus the button's padding and
+ * border, plus the gap. */
+const BUBBLE_PAD_PX = 18;
+const BUBBLE_GAP_PX = 4;
+const pack = (labels, widthPx, charPx) => {
   const rows = [];
   let row = [];
   let used = 0;
   for (const label of labels) {
-    const w = label.length + BUBBLE_PAD;
-    if (row.length && used + w > cols) {
+    const w = label.length * charPx + BUBBLE_PAD_PX;
+    if (row.length && used + BUBBLE_GAP_PX + w > widthPx) {
       rows.push(row);
       row = [];
       used = 0;
     }
     row.push(label);
-    used += w;
+    used += (row.length > 1 ? BUBBLE_GAP_PX : 0) + w;
   }
   if (row.length) rows.push(row);
   return rows;
@@ -598,6 +599,8 @@ export default function Page() {
     return rows;
   };
   const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
+  /* One character's width in pixels, from what the panel measured. */
+  const charPx = () => (panelW() > 0 && cols() > 0 ? panelW() / cols() : 8);
   const tileW = () => (panelW() > 0 ? Math.max(200, Math.floor((panelW() - (columns() - 1) * CARD_GAP) / columns())) : CARD_W);
   const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
 
@@ -701,7 +704,7 @@ export default function Page() {
         <Show when={!cards().length && !loggedOut()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
-            <Index each={pack(shown(), cols())}>
+            <Index each={pack(shown(), panelW() || CARD_W, charPx())}>
               {(bubbles) => (
                 <row gap={4}>
                   <Index each={bubbles()}>
