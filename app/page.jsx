@@ -104,6 +104,9 @@ const graph = {
 };
 
 const num = (v) => (v === undefined || v === null || v === true ? NaN : Number(v));
+/* What the platform says when this host has no login: no token, or one
+ * it rejects. Charts do not need one; asking does. */
+const authError = (e) => /access token|not logged in|logged out|unauthori[sz]ed|forbidden/i.test(String(e?.message ?? e ?? ""));
 const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const isChart = (seg) => seg.kind === "block" && seg.name === "chart";
@@ -131,6 +134,11 @@ export default function Page() {
   /* The graph's schema, introspected once and carried in every prompt.
    * Until it is in, the status line says so and a question waits. */
   const [schema, setSchema] = createSignal(null);
+  /* Logged out, the panel shows <login> in place of the input: the shell
+   * runs `yeet login` and shows the code URL, and reports when it is
+   * done. Found out up front through a platform call, and again if an
+   * ask comes back rejected. */
+  const [loggedOut, setLoggedOut] = createSignal(false);
   const [tick, setTick] = createSignal(0);
   /* Bumped when a cell is added or released, so a lookup in the map
    * below re-runs. The map itself is plain: it is mutated in place. */
@@ -154,6 +162,16 @@ export default function Page() {
     runTool,
     on: { usage: setUsage },
   });
+
+  Promise.resolve()
+    .then(() => yeet.caps())
+    .then(
+      () => setLoggedOut(false),
+      (error) => {
+        if (authError(error)) setLoggedOut(true);
+        else console.warn(`askai: caps: ${error?.message ?? error}`);
+      },
+    );
 
   const schemaLoad = loadSchema(graph.query).then(
     (loaded) => {
@@ -318,6 +336,7 @@ export default function Page() {
       }));
       setBusy(false);
       setStatus("");
+      if (outcome.error && authError(outcome.error)) setLoggedOut(true);
       if (!outcome.error && !outcome.cancelled) doctor(id).catch((error) => console.warn(`askai: repair failed: ${error?.message ?? error}`));
     } catch (error) {
       patch(id, (c) => ({ ...c, done: true, error: String(error?.message ?? error) }));
@@ -498,56 +517,72 @@ export default function Page() {
         }}
         onClose={() => setOpen(false)}
       >
-        <input
-          placeholder={examples[example()]}
-          value={draft()}
-          onInput={(e) => setDraft(e.value)}
-          onSubmit={(e) => {
-            setDraft(e.value.trim() || examples[example()]);
-            submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
-          }}
-        />
-
-        {/* The model is a pull-down: the button names the current one and
-            opens a column of the rest under it; picking one closes it. */}
-        <row gap={4}>
-          <button
-            horizontalPadding={4}
-            verticalPadding={0}
-            tooltipText="Choose the model"
-            onClick={() => setPicking(!picking())}
-          >
-            {`${model()} ${picking() ? "▴" : "▾"}`}
-          </button>
-          <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
-          <Show when={busy()}>
-            <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
-              stop
-            </button>
-          </Show>
-        </row>
-        <Show when={picking()}>
-          <column gap={0}>
-            <Index each={MODELS}>
-              {(name) => (
-                <button
-                  horizontalPadding={4}
-                  verticalPadding={0}
-                  selected={name() === model()}
-                  onClick={() => {
-                    setModel(name());
-                    setPicking(false);
-                  }}
-                >
-                  {name()}
-                </button>
-              )}
-            </Index>
+        <Show when={loggedOut()}>
+          <column gap={4}>
+            <text bold>yeet is not logged in</text>
+            <text size="bodySmall" wrap fill>
+              Asking reaches the model through the platform, so this host needs a login. Charts already drawn keep running.
+            </text>
+            <login
+              onDone={(e) => {
+                if (e.ok) setLoggedOut(false);
+              }}
+            />
           </column>
         </Show>
 
+        <Show when={!loggedOut()}>
+          <input
+            placeholder={examples[example()]}
+            value={draft()}
+            onInput={(e) => setDraft(e.value)}
+            onSubmit={(e) => {
+              setDraft(e.value.trim() || examples[example()]);
+              submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
+            }}
+          />
+
+          {/* The model is a pull-down: the button names the current one and
+              opens a column of the rest under it; picking one closes it. */}
+          <row gap={4}>
+            <button
+              horizontalPadding={4}
+              verticalPadding={0}
+              tooltipText="Choose the model"
+              onClick={() => setPicking(!picking())}
+            >
+              {`${model()} ${picking() ? "▴" : "▾"}`}
+            </button>
+            <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
+            <Show when={busy()}>
+              <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
+                stop
+              </button>
+            </Show>
+          </row>
+          <Show when={picking()}>
+            <column gap={0}>
+              <Index each={MODELS}>
+                {(name) => (
+                  <button
+                    horizontalPadding={4}
+                    verticalPadding={0}
+                    selected={name() === model()}
+                    onClick={() => {
+                      setModel(name());
+                      setPicking(false);
+                    }}
+                  >
+                    {name()}
+                  </button>
+                )}
+              </Index>
+            </column>
+          </Show>
+        </Show>
+
         {/* The zero state: every example as a bubble, a click asks it. */}
-        <Show when={!cards().length}>
+        <Show when={!cards().length && !loggedOut()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
             <Index each={pack(shown(), cols())}>

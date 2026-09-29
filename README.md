@@ -188,6 +188,12 @@ a cell fed by a scripted graph (plots, rates, failures, timeouts,
 teardown) and the agent loop against a scripted stream. `npm run check`
 needs `yeet` and its daemon.
 
+Logged out, the panel says so and shows the login itself: the shell
+runs `yeet login`, and the one-time URL it prints appears with a copy
+button and one that opens it in the browser. When the login completes
+the input comes back. Charts already drawn keep running throughout,
+since the graph needs no login.
+
 A chart that fails says so under its header in the panel, in the theme's
 urgent colour. The isolate runs under `script`, which folds its stderr
 into the wire, so its console output never reaches the shell log; to
