@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "cx.yeet.proctop",
-  "name": "proctop",
+  "id": "cx.yeet.askai",
+  "name": "askai",
   "version": "0.1.0",
   "author": "yeet",
   "license": "Apache-2.0",
-  "description": "Live CPU and memory history in the Omarchy bar, with a per-process table. Braille charts, sampled by subscription rather than polling.",
-  "homepage": "https://github.com/yeet-src/omarchy-proctop",
+  "description": "Ask AI for a chart of this host. The model writes a subscription over the system graph and the panel draws it live, in braille, under the Omarchy bar.",
+  "homepage": "https://github.com/yeet-src/omarchy-askai",
   "kinds": [
     "bar-widget"
   ],
@@ -14,8 +14,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "proctop",
-    "description": "Live CPU and memory history in the Omarchy bar, with a per-process table. Braille charts, sampled by subscription rather than polling.",
+    "displayName": "Ask AI",
+    "description": "Ask AI for a chart of this host. The model writes a subscription over the system graph and the panel draws it live, in braille, under the Omarchy bar.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

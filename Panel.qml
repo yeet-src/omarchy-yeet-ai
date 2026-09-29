@@ -16,7 +16,7 @@ import "yeetkit" as Kit
 // never resolve.
 Panel {
   id: root
-  moduleName: "cx.yeet.proctop"
+  moduleName: "cx.yeet.askai"
   manageIpc: false
 
   property var anchorItem: null
@@ -180,7 +180,7 @@ Panel {
             selectByMouse: true
             textFormat: TextEdit.PlainText
             wrapMode: TextEdit.WordWrap
-            text: "proctop draws from a yeet isolate, so it needs yeet installed and its daemon running."
+            text: "askai draws from a yeet isolate, so it needs yeet installed and its daemon running."
             color: Color.muted
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
@@ -188,17 +188,17 @@ Panel {
 
           Section {
             width: parent.width
-            visible: help.trouble === "missing"
-            label: "Install"
-            value: "yay -S yeet-bin"
+            visible: help.trouble === "daemon"
+            label: "Start"
+            value: "sudo systemctl enable --now yeetd"
             copyable: true
           }
 
           Section {
             width: parent.width
-            visible: help.trouble !== ""
-            label: "Start"
-            value: "sudo systemctl enable --now yeetd"
+            visible: help.trouble === "missing"
+            label: "Install"
+            value: "curl -fsSL https://yeet.cx | sh"
             copyable: true
           }
 

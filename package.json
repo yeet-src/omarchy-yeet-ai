@@ -1,11 +1,12 @@
 {
-  "name": "omarchy-proctop",
+  "name": "omarchy-askai",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "yeetkit-omarchy dev",
     "build": "yeetkit-omarchy build",
     "check": "yeetkit-omarchy build && yeetkit-omarchy check",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "dist": "yeetkit-omarchy build && cp -a plugin/. .",
     "vendor": "npm pack --pack-destination vendor ../yeetkit-omarchy && npm install"
   },

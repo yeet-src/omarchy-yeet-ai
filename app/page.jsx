@@ -1,474 +1,435 @@
-import { Index, createSignal, onCleanup } from "yeetkit";
+import { Index, Show, createSignal, onCleanup } from "yeetkit";
+import { runTool, stream } from "yeet:ai";
 
-/* The whole plugin is one page. Two elements in it are special: <bar>
- * is what sits in the bar, and <panel> is what opens under it. Both
- * run here, in the isolate, next to the data they show.
+import { createAgent } from "./agent.js";
+import { createCell } from "./cells.js";
+import { keyOf, parse } from "./directive.js";
+import { axis, bars, braille, clip, fmt, line, rowHeat } from "./draw.js";
+import { SYSTEM, context, repair } from "./prompt.js";
+import { createTools } from "./tools.js";
+
+/* The whole plugin is one page. <bar> is the item in the bar — `yeet:ai`,
+ * with the newest chart's sparkline beside it — and <panel> is what
+ * opens under it: an input, and under it every question asked, newest
+ * first, each holding the prose the model wrote and the charts it
+ * drew.
  *
- * Samples arrive by subscription, not by polling: the daemon reads the
- * kernel at the interval asked for and pushes each sample, so there is
- * no timer here and nothing re-queries on a tick.
+ * The model does not describe a reading; it writes the instrument that
+ * takes it. Its reply carries `:::chart` blocks — the shape the
+ * notebook's `:::ui` has — whose bodies run here, in the isolate, next
+ * to the system graph. A body subscribes over `yeet.graph.subscribe`
+ * and plots what arrives; the panel draws the series as braille on the
+ * same character grid proctop uses. Nothing polls: the daemon pushes
+ * each sample at the interval the block asked for.
  *
- * The design is one character grid. The shell's font is monospace, so
- * every aligned line — chart header, braille graph, table row — is
- * padded to the same number of columns, which makes their edges line up
- * and fills the panel exactly. That column count is not guessed: the
- * panel measures it from the real font metrics and reports it as `cols`,
- * because it depends on the user's font size.
- *
- * No colour is named here: `heat` takes one from the theme (muted →
- * accent → urgent), so the panel follows whatever theme is running. */
+ * No colour is named here: `heat` takes one from the theme, so the
+ * panel follows whatever theme is running. */
 
-const HZ = 1000; /* sample interval while the panel is open, ms */
-const IDLE = 4000; /* …and while it is closed: the bar only needs the count */
+const MODEL = "claude-sonnet-5";
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const BAR_W = 4; /* braille cells for the bar item's sparkline: 8 samples */
+const DEFAULT_ROWS = 4;
+const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
+const MAX_REPAIRS = 2;
+const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
 
-const ROWS = 10; /* processes listed */
-const HOT = 0.25; /* a process holding this much of RAM reads as fully hot */
-const HIST = 400; /* samples kept — more than the widest panel can show */
+const HINT =
+  "Ask for a chart of this host: “cpu”, “top processes by memory”, "
+  + "“network throughput”, “disk reads and writes”. The model writes a "
+  + "subscription over the system graph and the panel draws what arrives.";
 
-/* A braille cell is a 2x4 dot matrix, so one line of N characters holds
- * 2N samples and GH lines stack into GH*4 vertical levels — how btop
- * fits a dense graph into a few character rows. */
-const GH = 4;
-const LEVELS = GH * 4;
-const LEFT = [0x01, 0x02, 0x04, 0x40]; /* dots 1,2,3,7 — top to bottom */
-const RIGHT = [0x08, 0x10, 0x20, 0x80]; /* dots 4,5,6,8 */
-
-const braille = (samples, width, lo, hi) => {
-  const lines = [];
-  for (let r = 0; r < GH; r++) {
-    let line = "";
-    for (let x = 0; x < width; x++) {
-      let bits = 0;
-      for (let col = 0; col < 2; col++) {
-        const value = samples[x * 2 + col];
-        if (value === undefined) continue;
-        /* Floored at one level so a near-zero sample still draws the
-         * baseline: without it the CPU chart reads as empty between
-         * spikes while memory, sitting high, shows a solid floor. */
-        const fill = Math.max(1, Math.round(((value - lo) / (hi - lo)) * LEVELS));
-        const dots = col === 0 ? LEFT : RIGHT;
-        for (let k = 0; k < 4; k++) {
-          /* depth counts levels down from the top of the graph; a level
-           * lights once the column has filled up to it. */
-          const depth = r * 4 + k;
-          if (LEVELS - depth <= fill) bits |= dots[k];
-        }
-      }
-      line += String.fromCharCode(0x2800 + bits);
-    }
-    lines.push(line);
-  }
-  return lines;
+const graph = {
+  query: (q) => yeet.graph.query(q),
+  subscribe: (q, cb) => yeet.graph.subscribe(q, cb),
+  unsubscribe: (t) => yeet.graph.unsubscribe(t),
 };
 
-/* One braille row: 2 samples per character, 4 levels tall. Bars rise
- * from the baseline rather than tracing a line, which is what gives the
- * per-process columns their level-meter look. */
-const SPARK_W = 10;
-const SPARK_SAMPLES = SPARK_W * 2;
-
-const sparkline = (samples, width, lo, hi, curved) => {
-  /* Right-aligned: the newest sample belongs in the last cell, so a
-   * series with less history than the chart is wide fills from the right
-   * edge leftwards rather than starting at the left and leaving the
-   * newest reading in the middle. */
-  const slots = width * 2;
-  const window = samples.length >= slots
-    ? samples.slice(-slots)
-    : Array(slots - samples.length).fill(undefined).concat(samples);
-
-  let line = "";
-  for (let x = 0; x < width; x++) {
-    let bits = 0;
-    for (let col = 0; col < 2; col++) {
-      const value = window[x * 2 + col];
-      if (value === undefined) continue;
-      const ratio = Math.max(0, (value - lo) / (hi - lo));
-      const fill = Math.max(1, Math.min(4, Math.round((curved ? Math.sqrt(ratio) : ratio) * 4)));
-      const dots = col === 0 ? LEFT : RIGHT;
-      for (let k = 0; k < 4; k++) if (4 - k <= fill) bits |= dots[k];
-    }
-    line += String.fromCharCode(0x2800 + bits);
-  }
-  return line;
-};
-
-/* The window scrolls: a new sample enters at the right and the oldest
- * falls off the left. The first sample fills the buffer, so the chart is
- * full width from the first frame and scrolls from then on rather than
- * creeping in from the right edge for two minutes. */
-const push = (past, value) =>
-  (past.length ? [...past, value] : Array(HIST).fill(value)).slice(-HIST);
-
-/* Bars never dim: the scale starts at the theme accent and only
- * climbs toward urgent, so height carries the value. */
-const lift = (ratio) => 0.5 + 0.5 * Math.max(0, Math.min(1, ratio));
-
-/* Top row hottest, bottom row coolest — btop's vertical gradient — but
- * floored well above 0 so the lowest row never lands on `muted` and
- * fades out. */
-const rowHeat = (r) => 1 - 0.55 * (r / (GH - 1));
-
-/* Both sparklines, RSS and the live CPU figure are fixed-width; the
- * name takes what is left, so the table fills the reported width.
- * name+1 + (SPARK_W+1)*2 + RSS_W + NOW_W = cols */
-const RSS_W = 9;
-const NOW_W = 7; /* the live CPU figure and the gap after it */
-const NOW_FIG = 4; /* "100%" — right-aligned, so the figure sits hard against
-                    * the CPU chart it belongs to and the slack falls on the
-                    * RAM side instead of between the two. */
-const columns = (cols) => ({
-  name: Math.max(8, cols - (SPARK_W + 1) * 2 - RSS_W - NOW_W - 1),
-});
-
-const BAR_W = 4; /* braille cells per sparkline in the bar: 8 samples */
-
-const gib = (n) => (n / 1073741824).toFixed(1);
-const size = (n) => (n >= 1073741824 ? `${gib(n)} GiB` : `${Math.round(n / 1048576)} MiB`);
-const pct = (share) => `${Math.round(share * 100)}%`;
-const filled = (share, cells) => Math.max(0, Math.min(cells, Math.round(share * cells)));
-const clip = (name, width) =>
-  (name.length > width ? `${name.slice(0, width - 1)}…` : name).padEnd(width);
-
-const busy = (t) =>
-  t.user_ms + t.nice_ms + t.system_ms + (t.irq_ms || 0) + (t.softirq_ms || 0) + (t.steal_ms || 0);
-const spent = (t) => busy(t) + t.idle_ms + (t.iowait_ms || 0);
+const num = (v) => (v === undefined || v === null || v === true ? NaN : Number(v));
+const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const isChart = (seg) => seg.kind === "block" && seg.name === "chart";
+/* A header line shares its row with a small button, so it is padded to
+ * the grid less the button's room. Rows are laid out by hand rather
+ * than with `fill`: a text alone filling a row has no height until the
+ * row is laid out, and the panel measures before that. */
+const BUTTON_COLS = 6;
 
 export default function Page() {
-  const [count, setCount] = createSignal(0);
-  const [threads, setThreads] = createSignal(0);
-  const [running, setRunning] = createSignal(0);
-  const [rows, setRows] = createSignal([]);
-  const [byCpu, setByCpu] = createSignal(false);
-  const [mem, setMem] = createSignal({ total: 0, available: 0 });
-  const [memPast, setMemPast] = createSignal([]);
-  const [cpu, setCpu] = createSignal(0);
-  const [cpuPast, setCpuPast] = createSignal([]);
-  const [load, setLoad] = createSignal(0);
-  const [load5, setLoad5] = createSignal(0);
-  const [load15, setLoad15] = createSignal(0);
-  const [cores, setCores] = createSignal(0);
-  const [open, setOpen] = createSignal(false);
+  const [draft, setDraft] = createSignal("");
+  const [busy, setBusy] = createSignal(false);
+  const [status, setStatus] = createSignal("");
+  const [usage, setUsage] = createSignal(null);
+  const [cards, setCards] = createSignal([]);
   const [cols, setCols] = createSignal(48);
-  /* Real samples seen, so the window label does not claim history that
-   * is only the first reading held flat. */
-  const [ticks, setTicks] = createSignal(0);
+  const [open, setOpen] = createSignal(false);
+  const [tick, setTick] = createSignal(0);
+  /* Bumped when a cell is added or released, so a lookup in the map
+   * below re-runs. The map itself is plain: it is mutated in place. */
+  const [generation, setGeneration] = createSignal(0);
+  const [sources, setSources] = createSignal({});
 
-  /* One subscription per root field: a subscription carrying several of
-   * them delivers only the first, so they cannot be combined. Each
-   * ticket arrives as a promise, and `unsubscribe` wants the resolved
-   * string, so they are collected as they settle. */
-  const tickets = [];
-  let disposed = false;
+  /* `${cardId}/${blockKey}` -> { cell, view } — every chart running. A
+   * block's identity is its code (see directive.js), so re-parsing the
+   * reply as it streams finds the same cell rather than restarting it. */
+  const cells = new Map();
+  let nextId = 1;
 
-  const live = async (field, apply) => {
-    const ticket = await yeet.graph.subscribe(`subscription { ${field} }`, (sample) =>
-      apply(sample.data ?? sample),
-    );
-    if (disposed) yeet.graph.unsubscribe(ticket);
-    else tickets.push(ticket);
-  };
+  const { tools } = createTools(graph.query);
+  const agent = createAgent({ model: MODEL, system: SYSTEM, tools, stream, runTool, on: { usage: setUsage } });
 
-  /* Per-process CPU: schedstat.sum_exec_runtime is cumulative
-   * nanoseconds on-CPU, so a process's share of one core is its change
-   * over wall time. Wall time is measured, not assumed, because the
-   * interval changes when the panel opens. */
-  let seen = null;
-  let seenAt = 0;
-  /* Per-process history, keyed by pid and rebuilt each tick so a
-   * process that exits takes its series with it. Kept outside a signal
-   * and snapshotted into the rows, since a mutated Map is not
-   * reactive. */
-  let series = new Map();
-
-  const onProcs = (data) => {
-    setCount(data.procs.length);
-
-    const now = Date.now();
-    const runtime = new Map();
-    for (const proc of data.procs) {
-      if (proc.schedstat) runtime.set(proc.pid, proc.schedstat.sum_exec_runtime);
-    }
-    const elapsed = seen ? (now - seenAt) * 1e6 : 0; /* ms → ns */
-    const shares = new Map();
-    if (elapsed > 0) {
-      for (const [pid, ns] of runtime) {
-        const before = seen.get(pid);
-        if (before !== undefined) shares.set(pid, Math.max(0, (ns - before) / elapsed));
-      }
-    }
-    seen = runtime;
-    seenAt = now;
-
-    /* A process can go away between the enumeration and its stat read,
-     * and the graph reports that as a null stat rather than dropping the
-     * row — so the count is every process, but only the measured ones
-     * can be ranked. */
-    const measured = data.procs.filter((proc) => proc.stat);
-    setThreads(measured.reduce((n, proc) => n + proc.stat.num_threads, 0));
-
-    const next = new Map();
-    for (const proc of measured) {
-      const prior = series.get(proc.pid) || { cpu: [], mem: [] };
-      next.set(proc.pid, {
-        cpu: [...prior.cpu, shares.get(proc.pid) ?? 0].slice(-SPARK_SAMPLES),
-        mem: [...prior.mem, proc.stat.rss_bytes].slice(-SPARK_SAMPLES),
-      });
-    }
-    series = next;
-
-    /* Every row is annotated and kept; which ones show, and in what
-     * order, is decided when rendering — so flipping the sort re-orders
-     * at once instead of waiting for the next sample. */
-    setRows(
-      measured.map((proc) => {
-        const past = series.get(proc.pid);
-        return { ...proc, cpu: shares.get(proc.pid) ?? 0, cpuPast: past.cpu, memPast: past.mem };
-      }),
-    );
-  };
-
-  /* `procs` is the heavy field — every process with its stat, every
-   * tick — and the table is its only consumer, so it is held apart from
-   * the others and re-subscribed at a slower rate while the panel is
-   * shut, where all the bar needs from it is the count. */
-  let procs = null;
-  const watchProcs = async (interval) => {
-    if (procs) {
-      yeet.graph.unsubscribe(procs);
-      procs = null;
-    }
-    const ticket = await yeet.graph.subscribe(
-      `subscription { procs(interval_ms: ${interval}) { pid schedstat { sum_exec_runtime } stat { comm rss_bytes num_threads } } }`,
-      (sample) => onProcs(sample.data ?? sample),
-    );
-    if (disposed) yeet.graph.unsubscribe(ticket);
-    else procs = ticket;
-  };
-
-  watchProcs(IDLE);
-
-  live(`meminfo(interval_ms: ${HZ}) { mem_total mem_available }`, (data) => {
-    const all = data.meminfo.mem_total;
-    const free = data.meminfo.mem_available;
-    setMem({ total: all, available: free });
-    setMemPast((past) => push(past, all ? (all - free) / all : 0));
-    setTicks((n) => n + 1);
-  });
-
-  /* CPU is a counter, so utilisation is the change between samples:
-   * everything but idle and iowait, over the whole tick. */
-  let previous = null;
-  live(
-    `kernel_stats(interval_ms: ${HZ}) { total { user_ms nice_ms system_ms idle_ms iowait_ms irq_ms softirq_ms steal_ms } procs_running }`,
-    (data) => {
-      const now = data.kernel_stats.total;
-      setRunning(data.kernel_stats.procs_running || 0);
-      if (previous) {
-        const window = spent(now) - spent(previous);
-        const share = window > 0 ? (busy(now) - busy(previous)) / window : 0;
-        const clamped = Math.max(0, Math.min(1, share));
-        setCpu(clamped);
-        setCpuPast((past) => push(past, clamped));
-      }
-      previous = now;
-    },
-  );
-
-  live(`load_average(interval_ms: ${HZ}) { one five fifteen }`, (data) => {
-    setLoad(data.load_average.one);
-    setLoad5(data.load_average.five);
-    setLoad15(data.load_average.fifteen);
-  });
-
-  /* Core count does not change, so it is asked for once. */
-  yeet.graph.query(`{ cpu { num_cores } }`).then(({ data }) => setCores(data.cpu.num_cores));
+  /* The spinner is the only clock here, so it runs only while a turn
+   * is in flight. */
+  const spinner = setInterval(() => {
+    if (busy()) setTick((n) => n + 1);
+  }, 100);
 
   onCleanup(() => {
-    disposed = true;
-    for (const ticket of tickets) yeet.graph.unsubscribe(ticket);
-    tickets.length = 0;
-    if (procs) yeet.graph.unsubscribe(procs);
-    procs = null;
+    clearInterval(spinner);
+    for (const entry of cells.values()) entry.cell.release();
+    cells.clear();
+    agent.cancel().catch(() => {});
   });
 
-  const used = () => mem().total - mem().available;
-  const usedShare = () => (mem().total ? used() / mem().total : 0);
-  const samples = () => cols() * 2;
-  const window = () => Math.min(ticks(), samples());
-
-  /* Memory sits in a narrow band, so a 0..peak axis draws it as a solid
-   * block. Framing it on its own min..max — with a floor on the span so
-   * sampling noise cannot fill the frame — is what makes the movement
-   * legible, and the axis is labelled with that band. CPU keeps an
-   * absolute 0-100% axis: it is spiky enough to stay interesting, and
-   * there the height means something on its own. */
-  const memRange = () => {
-    const past = memPast().slice(-samples());
-    if (!past.length) return { lo: 0, hi: 0.05 };
-    const lo = Math.min.apply(null, past);
-    const hi = Math.max.apply(null, past);
-    const span = Math.max(0.03, (hi - lo) * 1.3);
-    const mid = (lo + hi) / 2;
-    return { lo: Math.max(0, mid - span / 2), hi: Math.min(1, mid + span / 2) };
+  const patch = (id, fn) => setCards((all) => all.map((card) => (card.id === id ? fn(card) : card)));
+  const cellKey = (cardId, block) => `${cardId}/${keyOf(block)}`;
+  const entryOf = (cardId, block) => {
+    generation();
+    return cells.get(cellKey(cardId, block)) ?? null;
   };
 
-  const cpuGraph = () => braille(cpuPast().slice(-samples()), cols(), 0, 1);
-  const memGraph = () => {
-    const band = memRange();
-    return braille(memPast().slice(-samples()), cols(), band.lo, band.hi);
+  /* Every closed chart block in a card's text has a cell; a block seen
+   * for the first time starts one. Called on each streamed delta, so a
+   * chart comes alive the moment its `::` lands, while the reply may
+   * still be writing the next one. */
+  const sync = (cardId, text) => {
+    let added = false;
+    for (const seg of parse(text)) {
+      if (!isChart(seg) || seg.open) continue;
+      const key = cellKey(cardId, seg);
+      if (cells.has(key)) continue;
+      const [view, setView] = createSignal(null);
+      const cell = createCell(seg, { graph, notify: (v) => setView({ ...v }) });
+      cells.set(key, { cell, view });
+      setView({ ...cell.view });
+      cell.run();
+      added = true;
+    }
+    if (added) setGeneration((n) => n + 1);
   };
 
-  const top = () => {
-    const all = [...rows()];
-    all.sort(byCpu() ? (a, b) => b.cpu - a.cpu : (a, b) => b.stat.rss_bytes - a.stat.rss_bytes);
-    return all.slice(0, ROWS);
+  const releaseCard = (cardId) => {
+    for (const [key, entry] of cells) {
+      if (key.startsWith(`${cardId}/`)) {
+        entry.cell.release();
+        cells.delete(key);
+      }
+    }
+    setGeneration((n) => n + 1);
   };
 
-  /* Sorted by CPU the largest process is no longer first, so the RAM
-   * bars scale against the largest of the rows on show. */
-  const peak = () => {
-    let max = 1;
-    for (const proc of top()) if (proc.stat.rss_bytes > max) max = proc.stat.rss_bytes;
-    return max;
+  const remove = (cardId) => {
+    releaseCard(cardId);
+    setCards((all) => all.filter((card) => card.id !== cardId));
   };
 
-  /* Both sparkline columns are scaled across the whole table rather than
-   * per row: a busier or larger process then draws taller bars, which is
-   * the comparison worth seeing. */
-  const cpuTop = () => {
-    let max = 0.05;
-    for (const proc of top()) for (const v of proc.cpuPast) if (v > max) max = v;
-    return max;
-  };
-  const share = (rss) => rss / (mem().total || 1);
+  const label = (call) => LABELS[call.name] ?? call.name;
 
-  /* The bar gets the same treatment as the panel, just shorter: CPU on
-   * an absolute axis, memory framed on its own band so it moves at all. */
-  const barCpu = () => sparkline(cpuPast().slice(-BAR_W * 2), BAR_W, 0, 1, false);
-  const barMem = () => {
-    const band = memRange();
-    return sparkline(memPast().slice(-BAR_W * 2), BAR_W, band.lo, band.hi, false);
+  /* The loop closes: a chart's code runs after the reply is finished,
+   * so the model cannot see its own instrument fail. A block that
+   * threw — a guessed field, a bad selection — goes back to it with
+   * the error, and the rewrite is substituted into the reply in place,
+   * so what stands in the panel is the version that works. Bounded per
+   * card, and only for a chart that never drew anything. */
+  const doctor = async (id) => {
+    await wait(REPAIR_WAIT);
+    const card = cards().find((c) => c.id === id);
+    if (!card || card.repairs >= MAX_REPAIRS || busy()) return;
+
+    const broken = parse(card.text)
+      .filter((seg) => isChart(seg) && !seg.open)
+      .map((seg) => ({ seg, entry: cells.get(cellKey(id, seg)) }))
+      .find(({ entry }) => entry && entry.view()?.error && !entry.view().samples);
+    if (!broken) return;
+
+    const { seg, entry } = broken;
+    setBusy(true);
+    setStatus(`repairing ${seg.label || "chart"}`);
+    patch(id, (c) => ({ ...c, repairs: c.repairs + 1 }));
+
+    const outcome = await agent.ask(repair({ ...seg, source: card.text.slice(seg.start, seg.end) }, entry.view().error), {
+      context: context(cols()),
+      remember: false,
+      on: {
+        text: () => setStatus(`repairing ${seg.label || "chart"}`),
+        tool: (call) => setStatus(label(call)),
+        error: (message) => patch(id, (c) => ({ ...c, error: message })),
+      },
+    });
+    setBusy(false);
+    setStatus("");
+
+    const fixed = parse(outcome.text).find((s) => isChart(s) && !s.open);
+    const latest = cards().find((c) => c.id === id);
+    if (!fixed || !latest) return;
+
+    entry.cell.release();
+    cells.delete(cellKey(id, seg));
+    const text = latest.text.slice(0, seg.start) + outcome.text.slice(fixed.start, fixed.end) + latest.text.slice(seg.end);
+    sync(id, text);
+    patch(id, (c) => ({ ...c, text }));
+    await doctor(id);
   };
 
-  /* left, then a label filling the middle, then a right-aligned figure —
-   * exactly `cols` characters wide. */
-  const middle = () => Math.max(1, cols() - 5 - 9);
+  const submit = async () => {
+    const question = draft().trim();
+    if (!question || busy()) return;
+    setDraft("");
+
+    const id = nextId++;
+    setCards((all) => [{ id, question, text: "", error: null, repairs: 0, done: false, cancelled: false }, ...all]);
+    setBusy(true);
+    setStatus("thinking");
+
+    try {
+      const outcome = await agent.ask(question, {
+        context: context(cols()),
+        on: {
+          text: (_delta, whole) => {
+            sync(id, whole);
+            patch(id, (c) => ({ ...c, text: whole }));
+            setStatus("writing");
+          },
+          tool: (call) => setStatus(label(call)),
+          toolResult: () => setStatus("thinking"),
+          error: (message) => patch(id, (c) => ({ ...c, error: message })),
+        },
+      });
+      sync(id, outcome.text);
+      patch(id, (c) => ({
+        ...c,
+        text: outcome.text,
+        done: true,
+        error: outcome.error ?? c.error,
+        cancelled: outcome.cancelled,
+      }));
+      setBusy(false);
+      setStatus("");
+      if (!outcome.error && !outcome.cancelled) doctor(id).catch((error) => console.warn(`askai: repair failed: ${error?.message ?? error}`));
+    } catch (error) {
+      patch(id, (c) => ({ ...c, done: true, error: String(error?.message ?? error) }));
+      setBusy(false);
+      setStatus("");
+    }
+  };
+
+  const spin = () => SPINNER[tick() % SPINNER.length];
+
+  /* The newest chart with a time series in it, for the bar item. */
+  const newest = () => {
+    for (const card of cards()) {
+      for (const seg of parse(card.text)) {
+        if (!isChart(seg)) continue;
+        const view = entryOf(card.id, seg)?.view();
+        if (view && view.order.length) return { view, seg };
+      }
+    }
+    return null;
+  };
+
+  const barText = () => {
+    const head = busy() ? `yeet:ai ${spin()}` : "yeet:ai";
+    const top = newest();
+    if (!top) return head;
+    const name = top.view.order[0];
+    const recent = top.view.series[name].slice(-BAR_W * 2);
+    const band = axis(recent, num(top.seg.attrs.min), num(top.seg.attrs.max));
+    return `${head} ${braille(recent, BAR_W, band.lo, band.hi, 1)[0]} ${fmt(top.view.latest[name], top.seg.attrs.unit)}`;
+  };
+
+  const chartCount = () => {
+    let n = 0;
+    for (const card of cards()) for (const seg of parse(card.text)) if (isChart(seg)) n += 1;
+    return n;
+  };
+
+  const statusLine = () => {
+    if (busy()) return `${spin()} ${status()} · ${MODEL}`;
+    const tokens = usage();
+    const cost = tokens ? ` · ${tokens.input_tokens}in/${tokens.output_tokens}out` : "";
+    const charts = chartCount();
+    /* `live` while the panel is open: the shell reports open and close,
+     * and the charts keep sampling either way — the tag says someone is
+     * looking. */
+    return `${MODEL}${cost}${charts ? ` · ${charts} chart${charts === 1 ? "" : "s"}` : ""}${open() ? " · live" : ""}`;
+  };
+
+  const toggleSource = (key) => setSources((all) => ({ ...all, [key]: !all[key] }));
+
+  /* One chart: header, the drawing, an axis line. `props.seg` is the
+   * block's accessor from <Index>, so a re-parse patches the label and
+   * the cell lookup follows the block's key. */
+  const Chart = (props) => {
+    const seg = () => props.seg();
+    const key = () => cellKey(props.cardId, seg());
+    const view = () => entryOf(props.cardId, seg())?.view() ?? null;
+    const unit = () => seg().attrs.unit;
+    const rows = () => clampInt(Number(seg().attrs.rows) || DEFAULT_ROWS, 1, 8);
+    const width = () => cols();
+    const windowOf = (name) => view().series[name].slice(-width() * 2);
+    /* One axis for every series in the block, over the window on show. */
+    const band = () => {
+      const v = view();
+      const seen = v.order.flatMap((name) => windowOf(name));
+      return axis(seen, num(seg().attrs.min), num(seg().attrs.max));
+    };
+    const single = () => view()?.order.length === 1;
+    const footer = () => {
+      const v = view();
+      const b = band();
+      return line(`${fmt(b.lo, unit())}–${fmt(b.hi, unit())}`, `${v.samples} samples`, width());
+    };
+
+    return (
+      <column gap={0}>
+        <row gap={4}>
+          <Show
+            when={view() && single() && !view().bars}
+            fallback={<text bold>{clip(seg().label || "chart", width() - BUTTON_COLS)}</text>}
+          >
+            <text bold>{clip(seg().label || "chart", width() - BUTTON_COLS - 9)}</text>
+            <text heat={0.6}>{fmt(view().latest[view().order[0]], unit()).padStart(8)}</text>
+          </Show>
+          <Show when={!seg().open}>
+            <button
+              horizontalPadding={4}
+              verticalPadding={0}
+              tooltipText={sources()[key()] ? "Hide the source" : "Show the source the model wrote"}
+              onClick={() => toggleSource(key())}
+            >
+              src
+            </button>
+          </Show>
+        </row>
+
+        <Show when={seg().open}>
+          <text size="caption" tone="muted">{`${spin()} writing…`}</text>
+        </Show>
+        <Show when={sources()[key()]}>
+          <text size="caption" tone="muted" wrap fill>{seg().script}</text>
+        </Show>
+
+        <Show when={view()?.bars}>
+          <Index each={bars(view().bars, width(), unit())}>{(l) => <text>{l()}</text>}</Index>
+        </Show>
+
+        <Show when={view() && !view().bars && view().order.length > 0}>
+          <Index each={view().order}>
+            {(name) => (
+              <column gap={0}>
+                <Show when={!single()}>
+                  <text size="caption" tone="muted">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
+                </Show>
+                <Index each={braille(windowOf(name()), width(), band().lo, band().hi, rows())}>
+                  {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
+                </Index>
+              </column>
+            )}
+          </Index>
+          <text size="caption" tone="muted">{footer()}</text>
+        </Show>
+
+        <Show when={view()?.error}>
+          <text size="caption" tone="urgent" wrap fill>{view().error}</text>
+        </Show>
+        <Show when={view() && !view().samples && !view().error && !seg().open}>
+          <text size="caption" tone="muted">waiting for data…</text>
+        </Show>
+      </column>
+    );
+  };
 
   return (
     <>
-      {/* One colour for the whole label — the host draws a bar item as a
-          single Text, so the braille and the count cannot differ. It
-          tracks whichever of the two pressures is higher. */}
-      <bar
-        heat={lift(Math.max(cpu(), usedShare()))}
-        tooltipText={`CPU ${pct(cpu())} · ${size(used())} of ${size(mem().total)} · ${count()} processes`}
-      >
-        {`${barCpu()} ${pct(cpu())} ${barMem()} ${pct(usedShare())} `
-          + `${load().toFixed(2)} / ${load5().toFixed(2)} / ${load15().toFixed(2)}`}
+      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI — ${chartCount()} charts · ${MODEL}`}>
+        {barText()}
       </bar>
 
       <panel
         contentWidth={420}
         gap={6}
         onCols={(e) => setCols(e.cols)}
-        onOpen={() => {
-          setOpen(true);
-          watchProcs(HZ);
-        }}
-        onClose={() => {
-          setOpen(false);
-          watchProcs(IDLE);
-        }}
+        onOpen={() => setOpen(true)}
+        onClose={() => setOpen(false)}
       >
-        <column gap={2}>
-          <row gap={0}>
-            <text bold heat={cpu()}>{pct(cpu()).padEnd(5)}</text>
-            <text>{`CPU · ${window()}s`.padEnd(middle())}</text>
-            <text>{`${cores()} cores`.padStart(9)}</text>
-          </row>
-          <column gap={0}>
-            <Index each={cpuGraph()}>{(line, r) => <text heat={rowHeat(r)}>{line()}</text>}</Index>
-          </column>
-        </column>
+        <input
+          placeholder="Ask for a chart of this host…"
+          value={draft()}
+          onInput={(e) => setDraft(e.value)}
+          onSubmit={(e) => {
+            setDraft(e.value);
+            submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
+          }}
+        />
 
-        <separator />
+        <row gap={4}>
+          <text size="caption" tone="muted">{statusLine()}</text>
+          <Show when={busy()}>
+            <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
+              stop
+            </button>
+          </Show>
+        </row>
 
-        <column gap={2}>
-          <row gap={0}>
-            <text bold heat={usedShare()}>{pct(usedShare()).padEnd(5)}</text>
-            <text>{`MEMORY · ${window()}s`.padEnd(middle())}</text>
-            <text>{`${pct(memRange().lo)}–${pct(memRange().hi)}`.padStart(9)}</text>
-          </row>
-          <column gap={0}>
-            <Index each={memGraph()}>{(line, r) => <text heat={rowHeat(r)}>{line()}</text>}</Index>
-          </column>
-          <text size="bodySmall">
-            {size(used())} used · {size(mem().available)} available · {size(mem().total)} total
-          </text>
-        </column>
+        <Show when={!cards().length}>
+          <text size="bodySmall" tone="muted" wrap fill>{HINT}</text>
+        </Show>
 
-        <separator />
+        <Show when={cards().length > 0}>
+            <scroll maxHeight={640} gap={6}>
+            {/* <Index> keys by position and hands down an accessor, so a
+                streamed delta patches the one card that changed. */}
+            <Index each={cards()}>
+              {(card, i) => (
+                <column gap={2}>
+                  <Show when={i > 0}>
+                    <separator />
+                </Show>
+                <row gap={4}>
+                  <text bold>{clip(`;; ${card().question}`, cols() - BUTTON_COLS)}</text>
+                  <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this chart" onClick={() => remove(card().id)}>
+                    ×
+                  </button>
+                </row>
 
-        <column gap={2}>
-          {/* The heading is the control: unselected and unbordered is how
-              the host draws a plain clickable label, so it reads as text
-              until hovered. No separate affordance to place. */}
-          <button
-            horizontalPadding={0}
-            verticalPadding={0}
-            tooltipText={byCpu() ? "Sort by memory" : "Sort by CPU"}
-            onClick={() => setByCpu(!byCpu())}
-          >
-            {`Top by ${byCpu() ? "CPU" : "memory"}`}
-          </button>
+                <Index each={parse(card().text)}>
+                  {(seg) => (
+                    <Show
+                      when={isChart(seg())}
+                      fallback={
+                        <text size="bodySmall" wrap fill>
+                          {seg().kind === "text" ? seg().text : seg().script}
+                        </text>
+                      }
+                    >
+                      <Chart seg={seg} cardId={card().id} />
+                    </Show>
+                  )}
+                </Index>
 
-          <row gap={0}>
-            <text bold>{"PROCESS".padEnd(columns(cols()).name + 1)}</text>
-            <text bold>{"CPU".padStart(SPARK_W) + " "}</text>
-            <text bold>{"NOW".padStart(NOW_FIG) + " ".repeat(NOW_W - NOW_FIG)}</text>
-            <text bold>{"RAM".padStart(SPARK_W) + " "}</text>
-            <text bold>{"RSS".padStart(RSS_W)}</text>
-          </row>
-
-          {/* <Index> keys by position and hands down an accessor, so a
-              fresh sample patches the cells that moved rather than
-              rebuilding every row. */}
-          <Index each={top()}>
-            {(proc, i) => (
-              <row gap={0}>
-                <text bold={i === 0}>
-                  {clip(proc().stat.comm, columns(cols()).name) + " "}
-                </text>
-                <text heat={lift(proc().cpu / cpuTop())}>
-                  {sparkline(proc().cpuPast, SPARK_W, 0, cpuTop(), false) + " "}
-                </text>
-                <text heat={lift(proc().cpu / cpuTop())}>
-                  {pct(proc().cpu).padStart(NOW_FIG) + " ".repeat(NOW_W - NOW_FIG)}
-                </text>
-                <text heat={lift(share(proc().stat.rss_bytes) / HOT)}>
-                  {sparkline(proc().memPast, SPARK_W, 0, peak() || 1, true) + " "}
-                </text>
-                <text>{size(proc().stat.rss_bytes).padStart(RSS_W)}</text>
-              </row>
+                <Show when={!card().done && !card().text}>
+                  <text size="caption" tone="muted">{`${spin()} ${status()}`}</text>
+                </Show>
+                <Show when={card().error}>
+                  <text size="caption" tone="urgent" wrap fill>{card().error}</text>
+                </Show>
+                <Show when={card().cancelled}>
+                  <text size="caption" tone="muted">— cancelled —</text>
+                </Show>
+              </column>
             )}
           </Index>
-
-          <separator />
-
-          <row gap={0}>
-            <text size="bodySmall">{`${count()} procs · ${running()} running · ${threads()} threads · load `}</text>
-            {/* Plain foreground rather than a gradient: on a theme whose
-                accent sits near the background, any point on the ramp
-                below urgent reads as dimmed. It goes urgent only once
-                load passes the core count, which is the case worth
-                colouring. */}
-            <text size="bodySmall" tone={load() > (cores() || 1) ? "urgent" : "fg"}>
-              {load().toFixed(2)}
-            </text>
-            <text size="bodySmall">{open() ? " · live 1 Hz" : ""}</text>
-          </row>
-        </column>
+          </scroll>
+        </Show>
       </panel>
     </>
   );

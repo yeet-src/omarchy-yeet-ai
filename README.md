@@ -1,68 +1,118 @@
-# proctop
+# askai
 
-Live CPU and memory for the [Omarchy](https://omarchy.org) bar: two braille
-history charts and a per-process table, in a panel under the bar item.
+Ask AI for a chart of this host, from the [Omarchy](https://omarchy.org)
+bar. The bar item reads `yeet:ai`; click it and a panel drops down with
+one input. Type a question — *cpu*, *top processes by memory*, *network
+throughput on eth0* — and the model does not describe the reading. It
+writes the instrument that takes it: a subscription over the system
+graph, running in a yeet isolate on the machine, drawn live in braille
+under the question.
 
-![proctop](assets/theme-blue.gif)
+```
+;; network throughput
+Bytes per second in and out of the default interface.
+throughput                                     rx 1.2M/s
+rx                                               1.2M/s
+⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣠⣴⣶⣿⣿⣿⣷⣄
+tx                                                42K/s
+⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣠⣤⣤⣄⣀⣀
+0B/s–1.5M/s                                   61 samples
+```
 
-The bar carries a braille sparkline and percentage for CPU, the same for
-memory, and the 1, 5 and 15-minute load averages. Clicking it opens the panel:
+This is a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
+with the fixed charts taken out and the model put in. The character
+grid, the braille, the theme-following `heat` colours and the
+subscription-not-polling stance are all proctop's.
 
-- **CPU**, on an absolute 0–100% axis, and **memory**, framed on its own
-  min–max band — against a `0–peak` axis a flat memory series draws as a solid
-  block and says nothing.
-- A table of the ten largest processes with a CPU sparkline, its live CPU
-  share, a memory sparkline and RSS. Click the heading to sort by CPU instead.
-- Process, thread and running counts, plus load average.
+## How a question becomes a chart
 
-Nothing polls. Samples arrive over `yeet.graph.subscribe` at 1 Hz, and the
-process list — the heavy one, every process with its stat each tick — drops to
-one sample every four seconds while the panel is shut, where the only thing
-reading it is the bar item's tooltip.
+The model answers in markdown, and the part of the answer that is an
+instrument rather than a sentence travels as a container directive —
+the shape the yeet notebook's `:::ui` block has:
 
-Every colour comes from the active Omarchy theme (`muted` → `accent` →
-`urgent`), so the panel follows whatever theme is set. On a deliberately
-monochrome theme there is no hue to follow and the charts render in greys.
+````markdown
+CPU as a share of every core, one sample a second.
 
-<p align="center">
-  <img src="assets/theme-blue.gif" width="32%" alt="proctop on a blue theme">
-  <img src="assets/theme-orange.gif" width="32%" alt="proctop on an orange theme">
-  <img src="assets/theme-mono.gif" width="32%" alt="proctop on a monochrome theme">
-</p>
+:::chart[cpu]{min=0 max=100 unit=%}
+```js
+let last = null;
+subscribe(`subscription { kernel_stats(interval_ms: 1000) { total {
+  user_ms nice_ms system_ms idle_ms iowait_ms irq_ms softirq_ms steal_ms } } }`, (d) => {
+  const t = d.kernel_stats.total;
+  const busy = t.user_ms + t.nice_ms + t.system_ms + t.irq_ms + t.softirq_ms + t.steal_ms;
+  const all = busy + t.idle_ms + t.iowait_ms;
+  if (last) plot(100 * (busy - last.busy) / (all - last.all));
+  last = { busy, all };
+});
+```
+::
+````
+
+The reply streams into the panel as it is written. The moment a block's
+closing `::` lands, its body is compiled and run in the isolate — while
+the model may still be writing the next one — with a small scope:
+
+- `subscribe(gql, cb)` — `yeet.graph.subscribe`, torn down with the chart.
+  Every field of the system graph has a subscription form, and
+  `interval_ms` sets the rate, so nothing here polls.
+- `plot(value)` — a number is a time series; an object of numbers is
+  several series stacked on one axis; an array of `{ label, value }` is a
+  ranking drawn as horizontal bars, replaced on every call.
+- `rate(key, counter)` — per-second change of a cumulative counter such as
+  `recv_bytes`, which is how throughput is drawn.
+- `graph(gql)` — a one-shot query, for finding a pid or a name first.
+- `state`, `onCleanup(fn)`, `log(...)`.
+
+Attributes on the block set the axis (`min= max=`), the unit (`%`, `B`,
+`B/s`, or any suffix), the braille rows per series (`rows=`), and an
+`id=` that keeps a chart's history across a rewrite. A body that
+returns a value instead of subscribing is polled on `live=` ms.
+
+Before it writes a query the model reads the schema — `graph_schema`
+and `graph_query` are its two tools, the same pair the yeet
+`graph-chat` example uses — so it does not guess field names. When a
+block still fails (a bad selection, a wrong shape), the error goes back
+to the model and the rewritten block is substituted in place, bounded at
+two repairs per question. `src` on any chart shows the code that is
+running, because the code was written by a model and is running on your
+host.
+
+The bar item shows the newest chart's last eight samples and its latest
+value, so a chart keeps reporting after the panel is shut.
 
 ## Requirements
 
 - [yeet](https://yeet.cx) — `yeet` on `PATH` with `yeetd` running, and
-  `yeet login` completed
+  `yeet login` completed. Charts need the daemon; asking needs the login,
+  since the model is reached through the platform's `yeet:ai`.
 - `script` from util-linux, which every Arch install has
 
 The plugin runs one isolate — `yeet run app.js` under `script`, so it has a
 terminal — and talks to it over that process's stdin and stdout. No port is
-opened, and the isolate stops a few seconds after the last bar widget goes
-away.
+opened. Charts live in that isolate, which stops a few seconds after the
+last bar widget goes away, so a shell restart clears the panel.
 
 ## Install
 
-Add the plugin first. Until yeet is installed and its daemon running, the bar
-item shows what is missing and how to fix it:
+Add the plugin first. Until yeet is installed and its daemon running, the
+bar item shows what is missing and how to fix it:
 
 ```sh
-omarchy plugin add https://github.com/yeet-src/omarchy-proctop --enable
+omarchy plugin add https://github.com/yeet-src/omarchy-askai --enable
 ```
 
 Then run the pinned installer from the plugin checkout and log in. The
 installer fetches a fixed yeet release for your architecture, checks the
-package's sha256 and signature against values written in the script, installs
-it and starts the daemon:
+package's sha256 and signature against values written in the script,
+installs it and starts the daemon:
 
 ```sh
-sh ~/.config/omarchy/plugins/cx.yeet.proctop/install-yeet.sh
+sh ~/.config/omarchy/plugins/cx.yeet.askai/install-yeet.sh
 yeet login
 ```
 
 To track new yeet releases along with the rest of the system, use the AUR
-package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead. It
-also pins a release and checks its sha256 and GPG signature before installing:
+package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead:
 
 ```sh
 yay -S yeet-bin
@@ -73,10 +123,13 @@ yeet login
 Other package managers are covered in the
 [manual installation guide](https://yeet.cx/docs/install/manual-installation).
 
+The model is `claude-sonnet-5`, set by `MODEL` at the top of
+`app/page.jsx`.
+
 ## Remove
 
 ```sh
-omarchy plugin remove cx.yeet.proctop
+omarchy plugin remove cx.yeet.askai
 ```
 
 ## Building from source
@@ -84,7 +137,17 @@ omarchy plugin remove cx.yeet.proctop
 The installable plugin is committed at the repository root — `manifest.json`,
 `BarWidget.qml`, `Panel.qml`, `app.js` and the vendored `yeetkit/` runtime — so
 a clone is ready to load with no build step. The source of that output is
-`app/page.jsx`.
+under `app/`:
+
+```
+app/page.jsx       the panel, the bar item, and the wiring between them
+app/directive.js   the :::chart parser — a streaming reply leaves the last block open
+app/cells.js       a running block: compile, scope, plot, teardown
+app/draw.js        braille, bars and number formatting on a character grid
+app/agent.js       the turn loop over yeet:ai, tools and repairs included
+app/tools.js       graph_schema and graph_query
+app/prompt.js      what the model is told
+```
 
 Rebuilding needs nothing outside this repository. The framework it is built
 with, [yeetkit-omarchy](https://github.com/yeet-src/yeetkit-omarchy), is
@@ -93,23 +156,19 @@ that file:
 
 ```sh
 npm install
+npm test         # the parser, the drawing, the cell runtime and the agent loop, under Node
 npm run dist     # build into plugin/, then sync it to the root
 npm run check    # drive the built plugin over a real portal
 ```
 
-`omarchy plugin validate .` passes on a fresh clone, which is what
-`omarchy plugin add` produces. In a working tree it fails on
-`node_modules/.bin/yeetkit-omarchy` — npm always links a package's declared
-binary, and Omarchy allows no symlinks inside a plugin folder. `node_modules/`
-is gitignored and never ships, so this affects only a tree you have installed
-into.
+`npm test` covers everything that does not need a host: the directive
+parser against streamed and closed replies, the braille and bar drawing,
+a cell fed by a scripted graph (plots, rates, failures, timeouts,
+teardown) and the agent loop against a scripted stream. `npm run check`
+needs `yeet` and its daemon.
 
-To move to a newer framework, check it out beside this repository and run
-`npm run vendor`, which re-packs it into `vendor/` and reinstalls. Then
-`npm run dist` and commit the rebuilt root.
-
-`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.proctop`
-and rebuilds on change. Note that the shell reloads `app.js` on its own, but
+`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.askai`
+and rebuilds on change. The shell reloads `app.js` on its own, but
 picking up a change to the QML entry files needs `omarchy restart shell`.
 
 ## Licence

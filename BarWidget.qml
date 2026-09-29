@@ -10,7 +10,7 @@ import "yeetkit" as Kit
 // clock so the shell's open/close/toggle routes land here.
 BarWidget {
   id: root
-  moduleName: "cx.yeet.proctop"
+  moduleName: "cx.yeet.askai"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
@@ -77,10 +77,10 @@ BarWidget {
     text: Kit.Isolate.trouble !== "" ? "⚠ yeet"
         : client.phase === "reconnecting" ? "…" : "·"
     tooltipText: Kit.Isolate.trouble === "missing"
-        ? "proctop — yeet is not installed; click for instructions"
+        ? "askai — yeet is not installed; click for instructions"
         : Kit.Isolate.trouble === "daemon"
-        ? "proctop — yeetd is not running; click for instructions"
-        : "proctop — waiting for the isolate"
+        ? "askai — yeetd is not running; click for instructions"
+        : "askai — waiting for the isolate"
     pressable: Kit.Isolate.trouble !== ""
     onPressed: root.toggle()
   }
