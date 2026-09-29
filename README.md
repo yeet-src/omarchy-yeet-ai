@@ -161,6 +161,15 @@ npm run dist     # build into plugin/, then sync it to the root
 npm run check    # drive the built plugin over a real portal
 ```
 
+`scripts/ask.js` asks one question from a terminal with no shell in the
+loop — the same agent, prompt, tools and chart runtime the panel uses —
+then runs every block the reply carries for a few seconds and prints
+what it plotted, or the error the panel would have sent back for repair:
+
+```sh
+yeet run scripts/ask.js "network throughput"
+```
+
 `npm test` covers everything that does not need a host: the directive
 parser against streamed and closed replies, the braille and bar drawing,
 a cell fed by a scripted graph (plots, rates, failures, timeouts,
