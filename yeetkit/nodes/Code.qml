@@ -9,7 +9,11 @@ import qs.Commons
 // reads as code and still belongs to the theme. Everything else is the
 // popup's text colour. The source is escaped before any markup is added,
 // so nothing in it can become markup of its own.
-Text {
+//
+// An Item around a Text rather than a Text: the client sets a node's
+// `text` from its text children, and this node has none, so a Text at
+// the root would have its highlighted text set to nothing.
+Item {
   id: root
   property var client: null
   property int nodeId: 0
@@ -21,14 +25,21 @@ Text {
   readonly property bool inRow: parent ? parent.axis === "x" : false
   anchors.left: parent && !inRow ? parent.left : undefined
   anchors.right: parent && !inRow ? parent.right : undefined
+  implicitWidth: body.implicitWidth
+  implicitHeight: body.implicitHeight
+  height: implicitHeight
 
-  textFormat: Text.StyledText
-  wrapMode: Text.WrapAnywhere
-  color: Color.popups.text
-  font.family: Style.font.family
-  font.pixelSize: Style.font.caption
-  renderType: Text.NativeRendering
-  text: highlight(source)
+  Text {
+    id: body
+    width: root.width
+    textFormat: Text.StyledText
+    wrapMode: Text.WrapAnywhere
+    color: Color.popups.text
+    font.family: Style.font.family
+    font.pixelSize: Style.font.caption
+    renderType: Text.NativeRendering
+    text: root.highlight(root.source)
+  }
 
   function tone(i) {
     var a = Color.accent

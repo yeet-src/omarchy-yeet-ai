@@ -164,14 +164,15 @@ Item {
 
   // ---- hover ----------------------------------------------------------
 
-  /* The point under the pointer, for a scatter: its label and both
-   * values in a small box beside it. */
+  /* Where the pointer is over the chart, or null. Each kind reads it
+   * while painting and draws what is under it: a sample and every
+   * series' value there, a bar's figure, a sector's share, a cell. */
   property var hover: null
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
     acceptedButtons: Qt.NoButton
-    onPositionChanged: function (mouse) { root.hover = canvas.pick(mouse.x, mouse.y); canvas.requestPaint() }
+    onPositionChanged: function (mouse) { root.hover = { x: mouse.x, y: mouse.y }; canvas.requestPaint() }
     onExited: { root.hover = null; canvas.requestPaint() }
   }
 
@@ -348,6 +349,7 @@ Item {
       }
       lists.forEach(function (l, si) { head(ctx, l, band, x, y, w, h, root.tone(si)) })
       ctx.restore()
+      hoverTime(ctx, names, lists, band, x, y, w, h, stacked)
 
       if (names.length > 1 || stacked) {
         legend(ctx, names.map(function (name, si) {
@@ -383,6 +385,14 @@ Item {
         text(ctx, name, x + 2, y + captionPx * 0.7, Color.popups.text)
         text(ctx, root.fmt(root.last(l)), x + w - 2, y + captionPx * 0.7, color, "right")
       })
+      var hv = root.hover
+      if (hv) {
+        var si = Math.floor((hv.y - pad) / strip)
+        if (si >= 0 && si < names.length) {
+          var sl = root.series(names[si])
+          hoverTime(ctx, [names[si]], [sl], root.axis(sl), x, pad + strip * si + 2, w, strip - 4, false)
+        }
+      }
     }
 
     /* A row per series, a cell per sample, shaded by value. */
@@ -413,6 +423,23 @@ Item {
           ctx.fillRect(cx + 0.5, y + 1, Math.max(1, cw - 1), Math.max(1, rowH - 2))
         }
       })
+      var hv = root.hover
+      if (hv && hv.x >= x && hv.x <= x + w) {
+        var ri = Math.floor((hv.y - pad) / rowH)
+        if (ri >= 0 && ri < names.length) {
+          var hl = root.series(names[ri]).slice(-cells)
+          var ci = hl.length - 1 - Math.floor((x + w - hv.x) / cw)
+          if (ci >= 0 && ci < hl.length && isFinite(hl[ci])) {
+            var hx = x + w - (hl.length - ci) * cw
+            ctx.strokeStyle = root.css(Color.accent); ctx.lineWidth = 1.5
+            ctx.strokeRect(hx + 0.5, pad + rowH * ri + 1, Math.max(1, cw - 1), Math.max(1, rowH - 2))
+            tip(ctx, hx + cw / 2, pad + rowH * ri + rowH / 2, [
+              { text: names[ri] + "  " + root.fmt(hl[ci]), color: Color.accent },
+              { text: (hl.length - 1 - ci) === 0 ? "now" : (hl.length - 1 - ci) + " samples ago" }
+            ])
+          }
+        }
+      }
     }
 
     /* The latest value as an arc, 270 degrees from lo to hi, open at
@@ -488,6 +515,20 @@ Item {
         if (bw > 0) { roundRect(ctx, x, by, Math.max(bh, bw), bh, bh / 2); ctx.fill() }
         text(ctx, root.fmt(Number(row.value)), width - pad, y + rowH / 2, Color.popups.text, "right")
       })
+      var hv = root.hover
+      if (hv) {
+        var hi = Math.floor((hv.y - pad) / rowH)
+        if (hi >= 0 && hi < rows.length) {
+          var hrow = rows[hi]
+          var share = peak > 0 ? Math.round(100 * (Number(hrow.value) || 0) / peak) : 0
+          ctx.fillStyle = root.css(root.alpha(Color.accent, 0.08))
+          ctx.fillRect(pad, pad + rowH * hi, width - pad * 2, rowH)
+          tip(ctx, hv.x, pad + rowH * hi + rowH / 2, [
+            { text: String(hrow.label) + "  " + root.fmt(Number(hrow.value)), color: Color.accent },
+            { text: share + "% of the largest" }
+          ])
+        }
+      }
     }
 
     function roundRect(ctx, x, y, w, h, r) {
@@ -526,6 +567,31 @@ Item {
         ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, 0, Math.PI * 2)
         ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.15)); ctx.stroke()
       }
+      var hv = root.hover
+      if (hv && total > 0) {
+        var dx = hv.x - cx, dy = hv.y - cy
+        var dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist <= r && dist >= r - ring) {
+          var turn = (Math.atan2(dy, dx) + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2)
+          var acc = 0
+          for (var hi = 0; hi < values.length; hi++) {
+            var span = Math.PI * 2 * (values[hi] / total)
+            if (turn >= acc && turn < acc + span) {
+              var mid = acc + span / 2 - Math.PI / 2
+              ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, acc - Math.PI / 2, acc + span - Math.PI / 2)
+              ctx.strokeStyle = root.css(root.alpha(Color.popups.text, 0.35)); ctx.lineWidth = ring + 4; ctx.stroke()
+              ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, acc - Math.PI / 2, acc + span - Math.PI / 2)
+              ctx.strokeStyle = root.css(root.tone(hi)); ctx.lineWidth = ring; ctx.stroke()
+              tip(ctx, cx + Math.cos(mid) * r, cy + Math.sin(mid) * r, [
+                { text: String(rows[hi].label) + "  " + root.fmt(Number(rows[hi].value)), color: root.tone(hi) },
+                { text: Math.round(100 * values[hi] / total) + "%" }
+              ])
+              break
+            }
+            acc += span
+          }
+        }
+      }
       var lx = cx + r + 12
       var lineH = Math.min(18, (height - pad * 2) / Math.max(1, rows.length))
       var ly = height / 2 - lineH * (rows.length - 1) / 2
@@ -543,7 +609,7 @@ Item {
     property var placed: []
 
     function pick(mx, my) {
-      var best = null, bestD = 100 /* px², a 10px reach */
+      var best = null, bestD = 144 /* px², a 12px reach */
       for (var i = 0; i < placed.length; i++) {
         var p = placed[i]
         var d = (p.px - mx) * (p.px - mx) + (p.py - my) * (p.py - my)
@@ -552,20 +618,73 @@ Item {
       return best
     }
 
-    function tooltip(ctx, p) {
-      var label = (p.label ? p.label + "  " : "") + root.fmt(p.y) + " · x " + root.compact(p.x)
+    /* A box of lines beside a point, kept inside the chart. Each line
+     * is { text, color? }; a coloured dot precedes a line with a colour. */
+    function tip(ctx, px, py, lines) {
       ctx.font = captionPx + "px " + family
-      var tw = ctx.measureText(label).width + 12
-      var th = captionPx + 10
-      var bx = Math.min(width - tw - 2, Math.max(2, p.px + 10))
-      var by = Math.max(2, p.py - th - 8)
-      ctx.fillStyle = root.css(root.alpha(Color.popups.background, 0.92))
+      var lineH = captionPx + 6
+      var tw = 0
+      lines.forEach(function (l) { tw = Math.max(tw, ctx.measureText(l.text).width + (l.color ? 12 : 0)) })
+      tw += 12
+      var th = lineH * lines.length + 6
+      var bx = px + 12 + tw > width - 2 ? px - 12 - tw : px + 12
+      bx = Math.max(2, Math.min(width - tw - 2, bx))
+      var by = Math.max(2, Math.min(height - th - 2, py - th / 2))
+      ctx.fillStyle = root.css(root.alpha(Color.popups.background, 0.94))
       roundRect(ctx, bx, by, tw, th, 4); ctx.fill()
       ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.6)); ctx.lineWidth = 1
       roundRect(ctx, bx + 0.5, by + 0.5, tw - 1, th - 1, 4); ctx.stroke()
-      text(ctx, label, bx + 6, by + th / 2, Color.popups.text)
-      ctx.beginPath(); ctx.arc(p.px, p.py, 5, 0, Math.PI * 2)
+      lines.forEach(function (l, i) {
+        var ly = by + 3 + lineH * i + lineH / 2
+        var lx = bx + 6
+        if (l.color) {
+          ctx.beginPath(); ctx.arc(lx + 3, ly, 3, 0, Math.PI * 2)
+          ctx.fillStyle = root.css(l.color); ctx.fill()
+          lx += 12
+        }
+        text(ctx, l.text, lx, ly, Color.popups.text)
+      })
+    }
+
+    function ring(ctx, px, py) {
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2)
       ctx.strokeStyle = root.css(Color.accent); ctx.lineWidth = 2; ctx.stroke()
+    }
+
+    /* The sample index nearest the pointer, given the plot's extent and
+     * the series length. */
+    function indexAt(mx, x, w, n) {
+      if (n <= 1) return n - 1
+      var step = w / Math.max(1, Math.min(n - 1, 119))
+      var i = Math.round(n - 1 - (x + w - mx) / step)
+      return Math.max(0, Math.min(n - 1, i))
+    }
+
+    /* Hover for a series chart: a guide at the sample and every
+     * series' value there. `lists` are aligned to their own ends. */
+    function hoverTime(ctx, names, lists, band, x, y, w, h, stacked) {
+      var hv = root.hover
+      if (!hv || hv.x < x || hv.x > x + w || hv.y < y || hv.y > y + h) return
+      var n = 0
+      lists.forEach(function (l) { n = Math.max(n, l.length) })
+      if (!n) return
+      var i = indexAt(hv.x, x, w, n)
+      var gx = xOf(i, n, x, w)
+      ctx.strokeStyle = root.css(root.alpha(Color.accent, 0.5)); ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx, y + h); ctx.stroke()
+      var lines = []
+      var sum = 0
+      names.forEach(function (name, si) {
+        var l = lists[si]
+        var v = l[l.length - n + i]
+        if (v === undefined || !isFinite(v)) return
+        lines.push({ text: name + "  " + root.fmt(v), color: root.tone(si) })
+        if (stacked) sum += Math.max(0, v)
+        else ring(ctx, gx, yOf(v, band, y, h))
+      })
+      if (stacked) { lines.push({ text: "total  " + root.fmt(sum) }); ring(ctx, gx, yOf(sum, band, y, h)) }
+      lines.push({ text: (n - 1 - i) === 0 ? "now" : (n - 1 - i) + " samples ago" })
+      tip(ctx, gx, hv.y, lines)
     }
 
     /* Points on two axes, framed to the data unless fixed. */
@@ -587,7 +706,16 @@ Item {
         ctx.fillStyle = root.css(root.alpha(Color.accent, 0.75 * (root.first ? root.t : 1))); ctx.fill()
       })
       placed = landed
-      if (root.hover) tooltip(ctx, root.hover)
+      if (root.hover) {
+        var hp = pick(root.hover.x, root.hover.y)
+        if (hp) {
+          ring(ctx, hp.px, hp.py)
+          tip(ctx, hp.px, hp.py, [
+            { text: (hp.label ? hp.label + "  " : "") + root.fmt(hp.y), color: Color.accent },
+            { text: "x  " + root.compact(hp.x) }
+          ])
+        }
+      }
     }
   }
 }
