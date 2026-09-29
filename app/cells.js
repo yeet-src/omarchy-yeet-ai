@@ -185,7 +185,7 @@ export function createCell(block, { graph, notify = () => {}, now = Date.now }) 
     onCleanup: (fn) => {
       if (typeof fn === "function") cleanups.push(fn);
     },
-    log: (...args) => console.log(`[chart ${block.label || "?"}]`, ...args.map(String)),
+    log: (...args) => console.warn(`[chart ${block.label || "?"}]`, ...args.map(String)),
     setTimeout: timer(setTimeout, clearTimeout),
     setInterval: timer(setInterval, clearInterval),
     clearTimeout,

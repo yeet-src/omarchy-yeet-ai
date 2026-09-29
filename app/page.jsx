@@ -106,7 +106,9 @@ export default function Page() {
 
   const schemaLoad = loadSchema(graph.query).then(
     (loaded) => {
-      console.log(`askai: schema ${loaded.types} types, ${loaded.bytes} bytes`);
+      /* stderr: the isolate's stdout is the wire to the shell, and only
+       * stderr reaches the shell log. */
+      console.warn(`askai: schema ${loaded.types} types, ${loaded.bytes} bytes`);
       setSchema(loaded);
     },
     (error) => console.warn(`askai: schema introspection failed, prompting without it: ${error?.message ?? error}`),
