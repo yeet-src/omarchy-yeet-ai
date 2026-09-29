@@ -13,8 +13,10 @@ import qs.Commons
 // whole), `split` (a strip per series, each on its own axis), `heat`
 // (a row per series, cells shaded by value), `gauge` (the latest
 // value as an arc), `stat` (the latest value as a figure over a
-// sparkline). Of bars: `bars` (horizontal, ranked) or `pie` (a donut
-// with a legend). Of points: `scatter`.
+// sparkline), `sparks` (a table: name, sparkline, latest value, one row
+// per series), `meters` (a vertical meter per series, at its latest
+// value). Of bars: `bars` (horizontal, ranked), `pie` (a donut with a
+// legend) or `meters` (a vertical meter per row). Of points: `scatter`.
 //
 // The marks follow one quiet spec: 2px lines with ringed end-markers,
 // area fills as a wash, bars no thicker than 24px with a rounded
@@ -85,7 +87,7 @@ Item {
   Timer {
     interval: 40
     repeat: true
-    running: root.visible && root.live && root.kind !== "heat" && root.kind !== "gauge" && root.kind !== "stat"
+    running: root.visible && root.live && ["heat", "gauge", "stat", "meters"].indexOf(root.kind) < 0
     onTriggered: {
       root.pulse = (root.pulse + 0.025) % 1
       canvas.requestPaint()
@@ -207,11 +209,13 @@ Item {
       ctx.textBaseline = "middle"
       var k = root.kind
       if (root.shown.points) paintScatter(ctx)
-      else if (root.shown.bars) { if (k === "pie") paintPie(ctx); else paintBars(ctx) }
+      else if (root.shown.bars) { if (k === "pie") paintPie(ctx); else if (k === "meters") paintMeters(ctx); else paintBars(ctx) }
       else if (k === "gauge") paintGauge(ctx)
       else if (k === "stat") paintStat(ctx)
       else if (k === "heat") paintHeat(ctx)
-      else if (k === "split" || k === "sparks") paintSplit(ctx)
+      else if (k === "meters") paintMeters(ctx)
+      else if (k === "sparks") paintSparks(ctx)
+      else if (k === "split") paintSplit(ctx)
       else paintTime(ctx)
     }
 
@@ -528,6 +532,116 @@ Item {
       head(ctx, l, band, x, y, w, h, Color.accent)
       ctx.restore()
       hoverTime(ctx, [names[0]], [l], band, x, y, w, h, false)
+    }
+
+    /* A table of sparklines: a row per series — its name, the window
+     * on its own band, the latest value. */
+    function paintSparks(ctx) {
+      var names = root.names()
+      if (!names.length) return
+      ctx.font = captionPx + "px " + family
+      var labelW = 0, valueW = 0
+      names.forEach(function (n) {
+        labelW = Math.max(labelW, ctx.measureText(n).width)
+        valueW = Math.max(valueW, ctx.measureText(root.fmt(root.last(root.series(n)))).width)
+      })
+      labelW = Math.min(labelW + 14, width * 0.35)
+      var x = pad + labelW, w = width - pad * 2 - labelW - valueW - 10
+      var rowH = (height - pad * 2) / names.length
+      names.forEach(function (name, si) {
+        var l = root.series(name)
+        var top = pad + rowH * si
+        var y = top + 3, h = rowH - 6
+        var color = root.tone(si)
+        ctx.beginPath(); ctx.arc(pad + 4, top + rowH / 2, 3, 0, Math.PI * 2)
+        ctx.fillStyle = root.css(color); ctx.fill()
+        ctx.save(); ctx.beginPath(); ctx.rect(pad + 10, top, labelW - 12, rowH); ctx.clip()
+        text(ctx, name, pad + 12, top + rowH / 2, Color.popups.text)
+        ctx.restore()
+        var band = root.axis(l)
+        ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+        var g = ctx.createLinearGradient(0, y, 0, y + h)
+        g.addColorStop(0, root.css(root.alpha(color, 0.18)))
+        g.addColorStop(1, root.css(root.alpha(color, 0.03)))
+        ctx.beginPath(); path(ctx, l, band, x, y, w, h)
+        ctx.lineTo(xOf(l.length - 1, l.length, x, w), y + h); ctx.lineTo(xOf(0, l.length, x, w), y + h); ctx.closePath()
+        ctx.fillStyle = g; ctx.fill()
+        ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round"
+        ctx.beginPath(); path(ctx, l, band, x, y, w, h)
+        ctx.strokeStyle = root.css(color); ctx.stroke()
+        var lv = root.last(l)
+        if (isFinite(lv)) {
+          var ex = xOf(l.length - 1, l.length, x, w), ey = yOf(lv, band, y, h)
+          ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI * 2); ctx.fillStyle = root.css(surface); ctx.fill()
+          ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fillStyle = root.css(color); ctx.fill()
+        }
+        ctx.restore()
+        text(ctx, root.fmt(lv), width - pad, top + rowH / 2, Color.popups.text, "right")
+      })
+      var hv = root.hover
+      if (hv && hv.x >= x && hv.x <= x + w) {
+        var si2 = Math.floor((hv.y - pad) / rowH)
+        if (si2 >= 0 && si2 < names.length) {
+          var sl = root.series(names[si2])
+          hoverTime(ctx, [names[si2]], [sl], root.axis(sl), x, pad + rowH * si2 + 3, w, rowH - 6, false)
+        }
+      }
+    }
+
+    /* A bank of vertical meters: one per row, or per series at its
+     * latest value. Each fills from the base to its share of the axis,
+     * the figure above it, the label beneath. */
+    function paintMeters(ctx) {
+      var items = []
+      if (root.shown.bars) {
+        root.shown.bars.forEach(function (row, i) { items.push({ label: String(row.label), value: barValue(row, i), color: root.tone(0) }) })
+      } else {
+        root.names().forEach(function (name, si) {
+          var cur = root.last(root.series(name)), was = root.last(root.prevSeries(name))
+          var v = isFinite(cur) ? (isFinite(was) ? root.lerp(was, cur, root.t) : cur) : null
+          items.push({ label: name, value: v, color: root.tone(si) })
+        })
+      }
+      if (!items.length) return
+      var band = root.axis(items.map(function (it) { return it.value }))
+      if (!(root.min !== "" && isFinite(Number(root.min)))) band.lo = Math.min(0, band.lo)
+      var slot = (width - pad * 2) / items.length
+      var bw = Math.max(6, Math.min(24, slot * 0.5))
+      var top = pad + captionRow, base = height - pad - captionRow
+      var h = base - top
+      items.forEach(function (it, i) {
+        var cx = pad + slot * i + slot / 2
+        var x = cx - bw / 2
+        /* the track: a lighter step of the same colour */
+        ctx.fillStyle = root.css(root.alpha(it.color, 0.15))
+        ctx.fillRect(x, top, bw, h)
+        if (it.value !== null && isFinite(it.value)) {
+          var ratio = Math.max(0, Math.min(1, (it.value - band.lo) / ((band.hi - band.lo) || 1)))
+          var fh = Math.max(ratio > 0 ? 3 : 0, ratio * h)
+          ctx.fillStyle = root.css(it.color)
+          ctx.save(); ctx.translate(cx, base); ctx.rotate(-Math.PI / 2)
+          endRect(ctx, 0, -bw / 2, fh, bw, 4); ctx.fill()
+          ctx.restore()
+        }
+        ctx.save(); ctx.beginPath(); ctx.rect(pad + slot * i, 0, slot, height); ctx.clip()
+        text(ctx, root.fmt(it.value), cx, top - captionPx * 0.6 - 2, Color.popups.text, "center")
+        text(ctx, it.label, cx, base + captionPx * 0.7 + 2, Color.popups.text, "center")
+        ctx.restore()
+      })
+      ctx.strokeStyle = root.css(root.alpha(Color.popups.text, 0.14)); ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(pad, base + 0.5); ctx.lineTo(width - pad, base + 0.5); ctx.stroke()
+      var hv = root.hover
+      if (hv) {
+        var hi = Math.floor((hv.x - pad) / slot)
+        if (hi >= 0 && hi < items.length && hv.y >= top && hv.y <= base) {
+          var it2 = items[hi]
+          var pct = Math.round(100 * Math.max(0, Math.min(1, (it2.value - band.lo) / ((band.hi - band.lo) || 1))))
+          tip(ctx, pad + slot * hi + slot / 2, hv.y, [
+            { text: it2.label + "  " + root.fmt(it2.value), color: it2.color },
+            { text: pct + "% of " + root.fmt(band.hi) }
+          ])
+        }
+      }
     }
 
     function barValue(row, i) {

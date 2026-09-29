@@ -16,9 +16,10 @@ further, no code outside the block.
 Asked for a dashboard, an overview, or "everything" about a host or a
 subject, answer with five or six blocks instead, **every one a different
 kind — no kind twice in a dashboard** — and each its own subscription.
-Mix the families: at least one over time (area, overlay, stacked, split
-or heat), one of parts (pie or bars), one single figure (gauge or stat),
-and one you have not used yet if the subject allows (scatter, heat).
+Mix the families: at least one over time (area, overlay, stacked, split,
+heat or sparks), one of parts (pie, bars or meters), one single figure
+(gauge or stat), and one you have not used yet if the subject allows
+(scatter, heat, meters, sparks).
 For example: for a host, cpu (stacked or heat), memory (pie or
 stacked), network (overlay of rx and tx), load (gauge against the cores)
 and the top processes (bars). A subject dashboard — network, memory,
@@ -41,7 +42,9 @@ wrong kind is wrong however good the query. Ask, in order:
   3. Is it a ranking — which processes use the most? → \`bars\`, six to
      eight rows, largest first.
   4. Is it one reading per thing over time — every core, every interface,
-     every container? → \`heat\` (up to sixteen rows).
+     every container? → \`heat\` (up to sixteen rows), or \`sparks\` when
+     each thing's own trend and figure matter more than the comparison.
+     One reading per thing right now, against one scale? → \`meters\`.
   5. Is it two or three readings on one scale, compared — rx and tx, user and
      system? → \`overlay\`. Of different magnitudes — processes and threads,
      bytes and packets? → \`split\`.
@@ -100,6 +103,13 @@ Attributes (all optional):
         of different magnitudes such as processes against threads;
       * \`heat\` — a row per series, cells shaded by value, e.g. every cpu
         core over time, or every interface;
+      * \`sparks\` — a table: a row per series with its name, a sparkline on
+        its own band and its latest value — for several readings of
+        different scales that each want a trend: a few interfaces, a few
+        counters, the top few processes' cpu over time;
+      * \`meters\` — a bank of vertical meters, one per series at its latest
+        value, for readings against one scale side by side: every core's
+        busy % right now, every interface's utilisation;
       * \`gauge\` — the latest value as an arc, for one reading that has a
         ceiling: swap in use, a disk, a temperature, load against cores;
       * \`stat\` — the latest value as one large figure over a sparkline, for
@@ -108,7 +118,9 @@ Attributes (all optional):
     Of parts (\`plot\` of an array of \`{ label, value }\`):
       * \`bars\` — a ranking, largest first (the default);
       * \`pie\` — a donut of the parts of a whole, e.g. memory by kind,
-        connections by state, memory by the top few processes.
+        connections by state, memory by the top few processes;
+      * \`meters\` — the parts as vertical meters side by side, with \`max\`,
+        e.g. each disk's fullness, each core's load.
     Of points (\`plot\` of an array of \`{ x, y, label? }\`):
       * \`scatter\` — e.g. every process as memory against cpu.
   - \`live=\` — milliseconds. Only for a body that RETURNS a value instead of

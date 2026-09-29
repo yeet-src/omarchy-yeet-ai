@@ -533,9 +533,11 @@ export default function Page() {
       const v = view();
       if (!v) return CHART_H;
       if (v.bars) return Math.max(60, Math.min(260, 22 * v.bars.length + 8));
-      if (kind() === "split" || kind() === "sparks") return Math.max(CHART_H, 56 * v.order.length);
+      if (kind() === "split") return Math.max(CHART_H, 56 * v.order.length);
       if (kind() === "heat") return Math.max(60, Math.min(260, 16 * v.order.length + 8));
       if (kind() === "stat") return 96;
+      if (kind() === "sparks") return Math.max(60, Math.min(300, 26 * v.order.length + 8));
+      if (kind() === "meters") return 130;
       return CHART_H;
     };
     const drew = () => {
