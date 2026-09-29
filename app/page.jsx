@@ -521,7 +521,7 @@ export default function Page() {
         onClose={() => setOpen(false)}
       >
         <Show when={loggedOut()}>
-          <column gap={4}>
+          <column gap={4} fill>
             <text bold>yeet is not logged in</text>
             <text size="bodySmall" wrap fill>
               Asking reaches the model through the platform, so this host needs a login. Charts already drawn keep running.
