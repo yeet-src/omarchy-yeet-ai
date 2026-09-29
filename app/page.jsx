@@ -535,6 +535,7 @@ export default function Page() {
       if (v.bars) return Math.max(60, Math.min(260, 22 * v.bars.length + 8));
       if (kind() === "split" || kind() === "sparks") return Math.max(CHART_H, 56 * v.order.length);
       if (kind() === "heat") return Math.max(60, Math.min(260, 16 * v.order.length + 8));
+      if (kind() === "stat") return 96;
       return CHART_H;
     };
     const drew = () => {
@@ -568,7 +569,7 @@ export default function Page() {
             <text>{seg().label || ""}</text>
           </Show>
           <Show when={view() && single() && !view().bars && !view().points}>
-            <text heat={0.6}>{fmt(view().latest[view().order[0]], unit())}</text>
+            <text bold>{fmt(view().latest[view().order[0]], unit())}</text>
           </Show>
           <Show when={seg() && !seg().open}>
             <button

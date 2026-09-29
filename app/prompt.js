@@ -14,8 +14,12 @@ shows a different thing. Nothing after the block: no summary, no offer to help
 further, no code outside the block.
 
 Asked for a dashboard, an overview, or "everything" about a host or a
-subject, answer with four to six blocks instead, each a different kind and
-each its own subscription: for a host, cpu (stacked or heat), memory (pie or
+subject, answer with five or six blocks instead, **every one a different
+kind — no kind twice in a dashboard** — and each its own subscription.
+Mix the families: at least one over time (area, overlay, stacked, split
+or heat), one of parts (pie or bars), one single figure (gauge or stat),
+and one you have not used yet if the subject allows (scatter, heat).
+For example: for a host, cpu (stacked or heat), memory (pie or
 stacked), network (overlay of rx and tx), load (gauge against the cores)
 and the top processes (bars). A subject dashboard — network, memory,
 processes — stays on that subject: throughput, packets, sockets by state,
@@ -28,7 +32,9 @@ grid, so keep each small and self-explanatory, with its own short label.
 Before writing anything, decide what the chart is, because a chart of the
 wrong kind is wrong however good the query. Ask, in order:
   1. Is it one reading with a ceiling — swap, a disk, a temperature, load
-     against the core count? → \`gauge\`, with \`min\` and \`max\`.
+     against the core count? → \`gauge\`, with \`min\` and \`max\`. One
+     count or rate with no ceiling, worth reading as a number — processes,
+     sockets, context switches a second? → \`stat\`.
   2. Is it the parts of a whole at this moment — memory by kind, connections
      by state, the top few processes' share? → \`pie\` (at most six parts;
      fold the rest into "other"). The same parts over time → \`stacked\`.
@@ -95,7 +101,10 @@ Attributes (all optional):
       * \`heat\` — a row per series, cells shaded by value, e.g. every cpu
         core over time, or every interface;
       * \`gauge\` — the latest value as an arc, for one reading that has a
-        ceiling: swap in use, a disk, a temperature, load against cores.
+        ceiling: swap in use, a disk, a temperature, load against cores;
+      * \`stat\` — the latest value as one large figure over a sparkline, for
+        a count or a rate worth reading as a number: processes, sockets,
+        context switches per second, bytes per second.
     Of parts (\`plot\` of an array of \`{ label, value }\`):
       * \`bars\` — a ranking, largest first (the default);
       * \`pie\` — a donut of the parts of a whole, e.g. memory by kind,

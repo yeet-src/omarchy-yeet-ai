@@ -12,8 +12,15 @@ import qs.Commons
 // `line`, `overlay` (several lines on one axis), `stacked` (bands of a
 // whole), `split` (a strip per series, each on its own axis), `heat`
 // (a row per series, cells shaded by value), `gauge` (the latest
-// value as an arc). Of bars: `bars` (horizontal, ranked) or `pie` (a
-// donut with a legend). Of points: `scatter`.
+// value as an arc), `stat` (the latest value as a figure over a
+// sparkline). Of bars: `bars` (horizontal, ranked) or `pie` (a donut
+// with a legend). Of points: `scatter`.
+//
+// The marks follow one quiet spec: 2px lines with ringed end-markers,
+// area fills as a wash, bars no thicker than 24px with a rounded
+// data-end and a square base, a 2px gap of surface between touching
+// fills, hairline solid gridlines, and text always in the popup's ink
+// with a coloured mark beside it for identity.
 //
 // Every colour comes from the theme. Series take the accent and hues
 // turned from it; on a monochrome theme they step in lightness instead.
@@ -78,7 +85,7 @@ Item {
   Timer {
     interval: 40
     repeat: true
-    running: root.visible && root.live && root.kind !== "heat" && root.kind !== "gauge"
+    running: root.visible && root.live && root.kind !== "heat" && root.kind !== "gauge" && root.kind !== "stat"
     onTriggered: {
       root.pulse = (root.pulse + 0.025) % 1
       canvas.requestPaint()
@@ -186,7 +193,8 @@ Item {
     anchors.fill: parent
     renderStrategy: Canvas.Cooperative
 
-    readonly property int pad: 4
+    readonly property int pad: 6
+    readonly property color surface: Color.popups.background
     readonly property real captionPx: Style.font.caption
     readonly property real bodyPx: Style.font.body
     readonly property string family: Style.font.family
@@ -201,6 +209,7 @@ Item {
       if (root.shown.points) paintScatter(ctx)
       else if (root.shown.bars) { if (k === "pie") paintPie(ctx); else paintBars(ctx) }
       else if (k === "gauge") paintGauge(ctx)
+      else if (k === "stat") paintStat(ctx)
       else if (k === "heat") paintHeat(ctx)
       else if (k === "split" || k === "sparks") paintSplit(ctx)
       else paintTime(ctx)
@@ -260,7 +269,11 @@ Item {
       ctx.fillStyle = root.css(root.alpha(color, (1 - p) * 0.35))
       ctx.fill()
       ctx.beginPath()
-      ctx.arc(px, py, 3, 0, Math.PI * 2)
+      ctx.arc(px, py, 6, 0, Math.PI * 2)
+      ctx.fillStyle = root.css(surface)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(px, py, 4, 0, Math.PI * 2)
       ctx.fillStyle = root.css(color)
       ctx.fill()
     }
@@ -327,10 +340,15 @@ Item {
           path(ctx, top, band, x, y, w, h)
           for (var b = n2 - 1; b >= 0; b--) ctx.lineTo(xOf(b, n2, x, w), yOf(below[b], band, y, h))
           ctx.closePath()
-          ctx.fillStyle = root.css(root.alpha(root.tone(si), 0.55))
+          ctx.fillStyle = root.css(root.alpha(root.tone(si), 0.42))
           ctx.fill()
+          /* The gap of surface between this band and the one above. */
+          if (si > 0) {
+            ctx.beginPath(); path(ctx, below, band, x, y, w, h)
+            ctx.strokeStyle = root.css(surface); ctx.lineWidth = 2; ctx.stroke()
+          }
           ctx.beginPath(); path(ctx, top, band, x, y, w, h)
-          ctx.strokeStyle = root.css(root.tone(si)); ctx.stroke()
+          ctx.strokeStyle = root.css(root.tone(si)); ctx.lineWidth = 2; ctx.stroke()
           below = top
         })
       } else {
@@ -338,8 +356,8 @@ Item {
           var color = root.tone(si)
           if (root.kind === "area" || (names.length === 1 && root.kind !== "line")) {
             var g = ctx.createLinearGradient(0, y, 0, y + h)
-            g.addColorStop(0, root.css(root.alpha(color, 0.55)))
-            g.addColorStop(1, root.css(root.alpha(color, 0.02)))
+            g.addColorStop(0, root.css(root.alpha(color, 0.18)))
+            g.addColorStop(1, root.css(root.alpha(color, 0.03)))
             ctx.beginPath()
             path(ctx, l, band, x, y, w, h)
             ctx.lineTo(xOf(l.length - 1, l.length, x, w), y + h)
@@ -378,18 +396,20 @@ Item {
         ctx.save()
         ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
         var g = ctx.createLinearGradient(0, y, 0, y + h)
-        g.addColorStop(0, root.css(root.alpha(color, 0.5)))
-        g.addColorStop(1, root.css(root.alpha(color, 0.02)))
+        g.addColorStop(0, root.css(root.alpha(color, 0.18)))
+        g.addColorStop(1, root.css(root.alpha(color, 0.03)))
         ctx.beginPath(); path(ctx, l, band, x, y, w, h)
         ctx.lineTo(xOf(l.length - 1, l.length, x, w), y + h); ctx.lineTo(xOf(0, l.length, x, w), y + h); ctx.closePath()
         ctx.fillStyle = g; ctx.fill()
-        ctx.lineWidth = 1.5; ctx.lineJoin = "round"
+        ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round"
         ctx.beginPath(); path(ctx, l, band, x, y, w, h)
         ctx.strokeStyle = root.css(color); ctx.stroke()
         head(ctx, l, band, x, y, w, h, color)
         ctx.restore()
-        text(ctx, name, x + 2, top + captionPx * 0.7, Color.popups.text)
-        text(ctx, root.fmt(root.last(l)), x + w - 2, top + captionPx * 0.7, color, "right")
+        ctx.beginPath(); ctx.arc(x + 5, top + captionPx * 0.7, 3, 0, Math.PI * 2)
+        ctx.fillStyle = root.css(color); ctx.fill()
+        text(ctx, name, x + 12, top + captionPx * 0.7, Color.popups.text)
+        text(ctx, root.fmt(root.last(l)), x + w - 2, top + captionPx * 0.7, Color.popups.text, "right")
       })
       var hv = root.hover
       if (hv) {
@@ -476,6 +496,40 @@ Item {
       text(ctx, root.fmt(band.hi), cx + r * 0.42, cy + r * 0.72, Color.popups.text, "center")
     }
 
+    /* The latest value as a figure, with the window as a sparkline
+     * under it and how it moved over the window. */
+    function paintStat(ctx) {
+      var names = root.names()
+      var l = names.length ? root.series(names[0]) : []
+      var cur = root.last(l), was = root.last(names.length ? root.prevSeries(names[0]) : [])
+      var v = isFinite(cur) ? (isFinite(was) ? root.lerp(was, cur, root.t) : cur) : null
+      var figurePx = Math.max(Style.font.title, Math.min(Style.font.displayLarge, height * 0.34))
+      text(ctx, root.fmt(v), pad, pad + figurePx * 0.55, Color.popups.text, "left", figurePx)
+      var first = l.length ? l[0] : null
+      if (isFinite(first) && isFinite(cur) && first !== 0) {
+        var change = (cur - first) / Math.abs(first) * 100
+        var sign = change >= 0 ? "+" : "−"
+        text(ctx, sign + Math.abs(change).toFixed(change >= 10 ? 0 : 1) + "% over the window", pad, pad + figurePx + captionPx * 0.9, Color.popups.text)
+      }
+      var y = pad + figurePx + captionPx * 1.8, h = height - y - pad
+      if (h < 12 || l.length < 2) return
+      var x = pad, w = width - pad * 2
+      var band = root.axis(l)
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+      var g = ctx.createLinearGradient(0, y, 0, y + h)
+      g.addColorStop(0, root.css(root.alpha(Color.accent, 0.18)))
+      g.addColorStop(1, root.css(root.alpha(Color.accent, 0.03)))
+      ctx.beginPath(); path(ctx, l, band, x, y, w, h)
+      ctx.lineTo(xOf(l.length - 1, l.length, x, w), y + h); ctx.lineTo(xOf(0, l.length, x, w), y + h); ctx.closePath()
+      ctx.fillStyle = g; ctx.fill()
+      ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round"
+      ctx.beginPath(); path(ctx, l, band, x, y, w, h)
+      ctx.strokeStyle = root.css(Color.accent); ctx.stroke()
+      head(ctx, l, band, x, y, w, h, Color.accent)
+      ctx.restore()
+      hoverTime(ctx, [names[0]], [l], band, x, y, w, h, false)
+    }
+
     function barValue(row, i) {
       var v = Number(row.value)
       var before = null
@@ -505,20 +559,19 @@ Item {
       rows.forEach(function (row) { peak = Math.max(peak, Number(row.value) || 0) })
       rows.forEach(function (row, i) {
         var y = pad + rowH * i
-        var bh = Math.max(3, Math.min(rowH - 4, 16))
+        var bh = Math.max(3, Math.min(rowH - 4, 24))
         var by = y + (rowH - bh) / 2
         var v = barValue(row, i)
         var bw = Math.max(0, w * v / peak)
         ctx.save(); ctx.beginPath(); ctx.rect(pad, y, labelW + 2, rowH); ctx.clip()
         text(ctx, String(row.label), pad, y + rowH / 2, Color.popups.text)
         ctx.restore()
-        ctx.fillStyle = root.css(root.alpha(Color.accent, 0.12))
-        roundRect(ctx, x, by, w, bh, bh / 2); ctx.fill()
-        var g = ctx.createLinearGradient(x, 0, x + w, 0)
-        g.addColorStop(0, root.css(root.tone(0)))
-        g.addColorStop(1, root.css(root.tone(1)))
-        ctx.fillStyle = g
-        if (bw > 0) { roundRect(ctx, x, by, Math.max(bh, bw), bh, bh / 2); ctx.fill() }
+        /* One colour for every bar — the length already says the value —
+         * square at the baseline, rounded at the data end. */
+        ctx.fillStyle = root.css(root.tone(0))
+        if (bw > 0) { endRect(ctx, x, by, Math.max(4, bw), bh, 4); ctx.fill() }
+        ctx.strokeStyle = root.css(root.alpha(Color.popups.text, 0.14)); ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(x + 0.5, by - 1); ctx.lineTo(x + 0.5, by + bh + 1); ctx.stroke()
         text(ctx, root.fmt(Number(row.value)), width - pad, y + rowH / 2, Color.popups.text, "right")
       })
       var hv = root.hover
@@ -535,6 +588,17 @@ Item {
           ])
         }
       }
+    }
+
+    /* A bar: square at x, rounded at x + w. */
+    function endRect(ctx, x, y, w, h, r) {
+      r = Math.min(r, h / 2, w)
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r)
+      ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+      ctx.lineTo(x, y + h)
+      ctx.closePath()
     }
 
     function roundRect(ctx, x, y, w, h, r) {
@@ -561,12 +625,15 @@ Item {
       ctx.lineWidth = ring
       var sweep = root.first ? root.t : 1
       var a = -Math.PI / 2
+      var gap = values.filter(function (v) { return v > 0 }).length > 1 ? 2 / (r - ring / 2) : 0
       values.forEach(function (v, i) {
         var frac = total > 0 ? v / total : 0
         var span = Math.PI * 2 * frac * sweep
         if (span <= 0) return
-        ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, a, a + span)
-        ctx.strokeStyle = root.css(root.tone(i)); ctx.stroke()
+        /* A 2px gap of surface on each side of a sector, as an angle. */
+        var a0 = a + Math.min(gap / 2, span / 4), a1 = a + span - Math.min(gap / 2, span / 4)
+        ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, a0, a1)
+        ctx.strokeStyle = root.css(root.tone(i)); ctx.lineWidth = ring; ctx.stroke()
         a += span
       })
       if (total <= 0) {
@@ -708,8 +775,10 @@ Item {
         var px = x + Math.max(0, Math.min(1, (p.x - bx.lo) / ((bx.hi - bx.lo) || 1))) * w
         var py = yOf(p.y, by, y, h)
         landed.push({ px: px, py: py, x: p.x, y: p.y, label: p.label })
-        ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2)
-        ctx.fillStyle = root.css(root.alpha(Color.accent, 0.75 * (root.first ? root.t : 1))); ctx.fill()
+        ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2)
+        ctx.fillStyle = root.css(root.alpha(surface, 0.9)); ctx.fill()
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2)
+        ctx.fillStyle = root.css(root.alpha(Color.accent, 0.85 * (root.first ? root.t : 1))); ctx.fill()
       })
       placed = landed
       if (root.hover) {
