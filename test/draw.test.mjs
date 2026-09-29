@@ -46,6 +46,22 @@ test("bars: one line per row, exactly width wide, scaled to the largest", () => 
   assert.ok(lines[1].includes("…"));
 });
 
+test("bars: a remainder that rounds to a full eighth never prints undefined", () => {
+  /* width 40, label 13, value 4 → bar 21 cells; 0.9975 of it ends 0.95
+   * cells in, which rounds to 8 eighths */
+  const lines = bars([{ label: "a", value: 1000 }, { label: "b", value: 997.5 }, { label: "c", value: 1 }], 40);
+  for (const l of lines) {
+    assert.ok(!l.includes("undefined"), l);
+    assert.equal([...l].length, 40);
+  }
+  for (let v = 0; v <= 1000; v += 1) {
+    for (const l of bars([{ label: "x", value: v }, { label: "max", value: 1000 }], 30)) {
+      assert.ok(!l.includes("undefined"), `${v}: ${l}`);
+      assert.equal([...l].length, 30, `${v}: ${l}`);
+    }
+  }
+});
+
 test("fmt: units", () => {
   assert.equal(fmt(42.4, "%"), "42%");
   assert.equal(fmt(3.14159, "%"), "3.1%");

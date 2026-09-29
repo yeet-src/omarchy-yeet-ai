@@ -45,10 +45,36 @@ const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is lef
 const MAX_REPAIRS = 2;
 const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
 
+/* Questions the empty input cycles through as its placeholder, each one
+ * checked to come back as a chart that draws. Enter on the empty input
+ * asks the one showing. */
+const EXAMPLES = [
+  "cpu usage",
+  "cpu split into user, system and iowait",
+  "memory used, cached and free",
+  "top processes by memory",
+  "top processes by cpu",
+  "network throughput",
+  "load average over 1, 5 and 15 minutes",
+  "tcp connections by state",
+  "context switches per second",
+  "number of processes and threads",
+];
+const EXAMPLE_MS = 4000;
+
 const HINT =
-  "Ask for a chart of this host: “cpu”, “top processes by memory”, "
-  + "“network throughput”, “disk reads and writes”. The model writes a "
-  + "subscription over the system graph and the panel draws what arrives.";
+  "Enter asks the example shown, or type your own. The model writes a subscription "
+  + "over the system graph and the panel draws what arrives.";
+
+/* A random order, so two panels do not start on the same question. */
+const shuffle = (list) => {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
 
 const graph = {
   query: (q) => yeet.graph.query(q),
@@ -75,6 +101,8 @@ export default function Page() {
   const [cols, setCols] = createSignal(48);
   const [open, setOpen] = createSignal(false);
   const [model, setModel] = createSignal(DEFAULT_MODEL);
+  const examples = shuffle(EXAMPLES);
+  const [example, setExample] = createSignal(0);
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
    * Until it is in, the status line says so and a question waits. */
@@ -118,9 +146,15 @@ export default function Page() {
   const spinner = setInterval(() => {
     if (busy()) setTick((n) => n + 1);
   }, 100);
+  /* The placeholder moves on only while someone is looking and has not
+   * started typing. */
+  const cycle = setInterval(() => {
+    if (open() && !draft()) setExample((i) => (i + 1) % examples.length);
+  }, EXAMPLE_MS);
 
   onCleanup(() => {
     clearInterval(spinner);
+    clearInterval(cycle);
     for (const entry of cells.values()) entry.cell.release();
     cells.clear();
     agent.cancel().catch(() => {});
@@ -380,10 +414,10 @@ export default function Page() {
         </row>
 
         <Show when={seg().open}>
-          <text size="caption" tone="muted">{`${spin()} writing…`}</text>
+          <text size="caption">{`${spin()} writing…`}</text>
         </Show>
         <Show when={sources()[key()]}>
-          <text size="caption" tone="muted" wrap fill>{seg().script}</text>
+          <text size="caption" wrap fill>{seg().script}</text>
         </Show>
 
         <Show when={view()?.bars}>
@@ -396,7 +430,7 @@ export default function Page() {
             fallback={
               <column gap={0}>
                 <Show when={!single()}>
-                  <text size="caption" tone="muted">{legend()}</text>
+                  <text size="caption">{legend()}</text>
                 </Show>
                 <Index each={chart(view().order.map(windowOf), width(), band().lo, band().hi, rows(), kind())}>
                   {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
@@ -408,7 +442,7 @@ export default function Page() {
               {(name) => (
                 <column gap={0}>
                   <Show when={!single()}>
-                    <text size="caption" tone="muted">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
+                    <text size="caption">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
                   </Show>
                   <Index each={braille(windowOf(name()), width(), band().lo, band().hi, rows())}>
                     {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
@@ -417,14 +451,14 @@ export default function Page() {
               )}
             </Index>
           </Show>
-          <text size="caption" tone="muted">{footer()}</text>
+          <text size="caption">{footer()}</text>
         </Show>
 
         <Show when={view()?.error}>
           <text size="caption" tone="urgent" wrap fill>{view().error}</text>
         </Show>
         <Show when={view() && !view().samples && !view().error && !seg().open}>
-          <text size="caption" tone="muted">waiting for data…</text>
+          <text size="caption">waiting for data…</text>
         </Show>
       </column>
     );
@@ -444,11 +478,11 @@ export default function Page() {
         onClose={() => setOpen(false)}
       >
         <input
-          placeholder="Ask for a chart of this host…"
+          placeholder={examples[example()]}
           value={draft()}
           onInput={(e) => setDraft(e.value)}
           onSubmit={(e) => {
-            setDraft(e.value);
+            setDraft(e.value.trim() || examples[example()]);
             submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
           }}
         />
@@ -464,7 +498,7 @@ export default function Page() {
           >
             {`${model()} ${picking() ? "▴" : "▾"}`}
           </button>
-          <text size="caption" tone="muted">{statusLine()}</text>
+          <text size="caption">{statusLine()}</text>
           <Show when={busy()}>
             <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
               stop
@@ -528,13 +562,13 @@ export default function Page() {
                 </Index>
 
                 <Show when={!card().done && !card().text}>
-                  <text size="caption" tone="muted">{`${spin()} ${status()}`}</text>
+                  <text size="caption">{`${spin()} ${status()}`}</text>
                 </Show>
                 <Show when={card().error}>
                   <text size="caption" tone="urgent" wrap fill>{card().error}</text>
                 </Show>
                 <Show when={card().cancelled}>
-                  <text size="caption" tone="muted">— cancelled —</text>
+                  <text size="caption">— cancelled —</text>
                 </Show>
               </column>
             )}

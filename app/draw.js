@@ -176,9 +176,15 @@ export function bars(rows, width, unit) {
   const peak = Math.max(...rows.map((row) => Math.max(0, Number(row.value) || 0)), 1e-9);
   return rows.map((row) => {
     const share = Math.max(0, Number(row.value) || 0) / peak;
-    const cells = share * barW;
-    const full = Math.floor(cells);
-    const rest = Math.round((cells - full) * 8);
+    /* Whole cells, then the remainder in eighths; a remainder that rounds
+     * to a whole eighth is one more full cell, not a ninth glyph. */
+    let full = Math.floor(share * barW);
+    let rest = Math.round((share * barW - full) * 8);
+    if (rest === 8) {
+      full += 1;
+      rest = 0;
+    }
+    full = Math.min(full, barW);
     const bar = ("█".repeat(full) + (rest > 0 && full < barW ? EIGHTHS[rest] : "")).padEnd(barW);
     return `${clip(String(row.label ?? ""), labelW)} ${bar} ${fmt(row.value, unit).padStart(valueW)}`;
   });
