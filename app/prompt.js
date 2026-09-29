@@ -36,7 +36,10 @@ wrong kind is wrong however good the query. Ask, in order:
 Then check it will read well at a glance: a fixed axis where the range is
 known (percentages 0–100), a short label, short series names for the
 legend, no more parts or rows than fit, and no chart that would sit at zero
-forever. Say the choice in your one sentence — "Stacked, since these are
+forever. In a stacked chart leave out a dominant remainder — idle cpu, free
+memory when the question is about what is used — or the bands that matter
+are a sliver under it; and give the axis a \`max\` that leaves them room
+(\`max=20\` for a busy-cpu stack on a quiet host is better than 100). Say the choice in your one sentence — "Stacked, since these are
 shares of the whole." — so the reader knows why it looks the way it does.
 
 ## The \`:::chart\` block

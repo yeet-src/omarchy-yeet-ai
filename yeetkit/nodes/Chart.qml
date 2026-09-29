@@ -87,17 +87,20 @@ Item {
 
   // ---- colour ---------------------------------------------------------
 
-  /* Series i: the accent, then hues turned from it by a golden-ish step
-   * so neighbours differ. A monochrome accent has no hue to turn, so
-   * the steps are in lightness. */
+  /* Series i: the accent, then colours that stay in its family — hues a
+   * few steps either side of it, alternating lighter and darker — so a
+   * chart of five series still reads as one theme. A monochrome accent
+   * has no hue to turn, so those steps are in lightness alone. */
+  readonly property var hueSteps: [0, 0.07, -0.07, 0.14, -0.14, 0.21, -0.21, 0.28]
+  readonly property var lightSteps: [0, 0.14, -0.12, 0.22, -0.18, 0.08, -0.06, 0.16]
   function tone(i) {
     var a = Color.accent
     if (i === 0) return a
-    if (a.hslSaturation < 0.12) {
-      var l = a.hslLightness + (i % 2 === 1 ? -1 : 1) * 0.16 * Math.ceil(i / 2)
-      return Qt.hsla(a.hslHue, a.hslSaturation, Math.max(0.25, Math.min(0.9, l)), 1)
-    }
-    return Qt.hsla((a.hslHue + i * 0.11) % 1, Math.min(1, a.hslSaturation * 0.95), a.hslLightness, 1)
+    var k = i % hueSteps.length
+    var l = Math.max(0.28, Math.min(0.88, a.hslLightness + lightSteps[k]))
+    if (a.hslSaturation < 0.12) return Qt.hsla(a.hslHue, a.hslSaturation, l, 1)
+    var hue = (a.hslHue + hueSteps[k] + 1) % 1
+    return Qt.hsla(hue, Math.min(1, a.hslSaturation), l, 1)
   }
   function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
   function css(c) { return c.toString() }
