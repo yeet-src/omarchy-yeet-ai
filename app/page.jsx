@@ -570,23 +570,28 @@ export default function Page() {
           <Show when={seg().open}>
             <text size="caption" tone="accent">{`${spin()} writing…`}</text>
           </Show>
-          {/* The source scrolls past a screen's worth, so a long block does
-              not push the chart off the grid. */}
-          <Show when={sources()[key()]}>
-            <scroll maxHeight={CODE_H} gap={0}>
+          {/* The source and the chart share one space: `src` swaps the chart
+              for the code at the chart's height, scrolling past it, and
+              `hide` swaps the chart back. The chart keeps sampling. */}
+          <Show
+            when={sources()[key()]}
+            fallback={
+              <Show when={drew()}>
+                <chart
+                  kind={kind()}
+                  payload={payload()}
+                  min={attr("min")}
+                  max={attr("max")}
+                  unit={attr("unit")}
+                  chartWidth={props.width}
+                  chartHeight={height()}
+                />
+              </Show>
+            }
+          >
+            <scroll maxHeight={drew() ? height() : CODE_H} gap={0}>
               <code source={seg().script} />
             </scroll>
-          </Show>
-          <Show when={drew()}>
-            <chart
-              kind={kind()}
-              payload={payload()}
-              min={attr("min")}
-              max={attr("max")}
-              unit={attr("unit")}
-              chartWidth={props.width}
-              chartHeight={height()}
-            />
           </Show>
           <Show when={view()?.error}>
             <text size="caption" tone="urgent" wrap fill>{view().error}</text>
