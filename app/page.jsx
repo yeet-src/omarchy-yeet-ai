@@ -617,7 +617,7 @@ export default function Page() {
             </scroll>
           </Show>
           <Show when={view()?.error}>
-            <text size="caption" tone="urgent" wrap fill>{view().error}</text>
+            <text size="caption" tone="urgent" wrap width={props.width}>{view().error}</text>
           </Show>
           <Show when={view() && !drew() && !view().error && !seg().open}>
             <text size="caption" tone="accent">{`${spin()} waiting for data…`}</text>
@@ -628,10 +628,10 @@ export default function Page() {
           <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
         </Show>
         <Show when={tile().prose && tile().first}>
-          <text size="caption" wrap fill>{tile().prose}</text>
+          <text size="caption" wrap width={props.width}>{tile().prose}</text>
         </Show>
         <Show when={card().error}>
-          <text size="caption" tone="urgent" wrap fill>{card().error}</text>
+          <text size="caption" tone="urgent" wrap width={props.width}>{card().error}</text>
         </Show>
         <Show when={card().cancelled}>
           <text size="caption">— cancelled —</text>
