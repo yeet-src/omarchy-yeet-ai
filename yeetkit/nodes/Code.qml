@@ -45,8 +45,8 @@ Item {
    * few steps either side of it, alternating lighter and darker — so a
    * chart of five series still reads as one theme. A monochrome accent
    * has no hue to turn, so those steps are in lightness alone. */
-  readonly property var hueSteps: [0, 0.07, -0.07, 0.14, -0.14, 0.21, -0.21, 0.28]
-  readonly property var lightSteps: [0, 0.14, -0.12, 0.22, -0.18, 0.08, -0.06, 0.16]
+  readonly property var hueSteps: [0, 0.05, -0.06, 0.10, -0.12, 0.15, -0.18, 0.20]
+  readonly property var lightSteps: [0, 0.16, -0.12, 0.24, -0.18, 0.08, -0.06, 0.18]
   function tone(i) {
     var a = Color.accent
     if (i === 0) return a
