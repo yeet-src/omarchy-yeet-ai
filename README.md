@@ -188,6 +188,12 @@ a cell fed by a scripted graph (plots, rates, failures, timeouts,
 teardown) and the agent loop against a scripted stream. `npm run check`
 needs `yeet` and its daemon.
 
+A chart that fails says so under its header in the panel, in the theme's
+urgent colour. The isolate runs under `script`, which folds its stderr
+into the wire, so its console output never reaches the shell log; to
+see a failure in a terminal, ask the same question through
+`scripts/ask.js`.
+
 `npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.askai`
 and rebuilds on change. The shell reloads `app.js` on its own, but
 picking up a change to the QML entry files needs `omarchy restart shell`.
