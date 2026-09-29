@@ -132,6 +132,11 @@ Rules for the body:
     \`d.data.kernel_stats\`. Match the nesting of the selection you wrote.
   - Keep selections narrow: ask only for the fields you plot. \`procs\` is every
     process on the host, so never select \`procs { fds }\`.
+  - **One root field per subscription.** A subscription with two root fields
+    delivers only the first, so \`subscription { tcp { … } udp { … } }\` leaves
+    \`d.udp\` undefined. For two readings, call \`subscribe\` twice, keep each
+    latest value in a variable, and \`plot\` from the callback of one of them
+    once both have arrived.
   - Counters (bytes, ticks, runtimes) are cumulative: chart their \`rate()\`,
     never the raw value.
   - \`meminfo\` is bytes and reports \`mem_available\` separately from \`mem_free\`;

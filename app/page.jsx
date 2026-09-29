@@ -88,7 +88,7 @@ const EXAMPLES = [
   "which processes use the most cpu?",
   "which processes have the most threads?",
   "which processes have the most open files?",
-  "which processes have been running the longest?",
+  "which cpu core is the busiest right now?",
   /* parts of a whole now — pie */
   "how many tcp connections are there, by state?",
   "what share of memory do the top five processes hold?",
