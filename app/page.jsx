@@ -46,6 +46,7 @@ const CARD_GAP = 12;
 const CHART_H = 120;
 const MAX_COLUMNS = 4;
 const CLOSE_W = 32; /* px the × button takes beside a heading */
+const CODE_H = 180; /* px of source shown before it scrolls */
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
 const MAX_REPAIRS = 2;
 const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
@@ -568,8 +569,12 @@ export default function Page() {
           <Show when={seg().open}>
             <text size="caption" tone="accent">{`${spin()} writing…`}</text>
           </Show>
+          {/* The source scrolls past a screen's worth, so a long block does
+              not push the chart off the grid. */}
           <Show when={sources()[key()]}>
-            <code source={seg().script} />
+            <scroll maxHeight={CODE_H} gap={0}>
+              <code source={seg().script} />
+            </scroll>
           </Show>
           <Show when={drew()}>
             <chart
