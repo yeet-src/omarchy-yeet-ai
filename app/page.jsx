@@ -492,7 +492,7 @@ export default function Page() {
         </Show>
 
         <Show when={!cards().length}>
-          <text size="bodySmall" tone="muted" wrap fill>{HINT}</text>
+          <text size="bodySmall" wrap fill>{HINT}</text>
         </Show>
 
         <Show when={cards().length > 0}>
