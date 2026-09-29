@@ -50,16 +50,16 @@ const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
  * afresh each time the panel opens; Enter on the empty input asks the
  * placeholder. */
 const EXAMPLES = [
-  "cpu usage",
-  "cpu split into user, system and iowait",
-  "memory used, cached and free",
-  "top processes by memory",
-  "top processes by cpu",
-  "network throughput",
-  "load average over 1, 5 and 15 minutes",
-  "tcp connections by state",
-  "context switches per second",
-  "number of processes and threads",
+  "how busy is the cpu?",
+  "how is cpu time split between user, system and iowait?",
+  "how is memory split between used, cached and free?",
+  "which processes use the most memory?",
+  "which processes use the most cpu?",
+  "how much network traffic is there?",
+  "what is the load average over 1, 5 and 15 minutes?",
+  "how many tcp connections are there, by state?",
+  "how many context switches per second?",
+  "how many processes and threads are running?",
 ];
 const SHOWN = 3; /* bubbles on show at once, from the ten */
 
