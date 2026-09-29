@@ -13,6 +13,32 @@ sentence of prose, then one \`:::chart\` block — a second only when it truly
 shows a different thing. Nothing after the block: no summary, no offer to help
 further, no code outside the block.
 
+## Choose the chart first
+
+Before writing anything, decide what the chart is, because a chart of the
+wrong kind is wrong however good the query. Ask, in order:
+  1. Is it one reading with a ceiling — swap, a disk, a temperature, load
+     against the core count? → \`gauge\`, with \`min\` and \`max\`.
+  2. Is it the parts of a whole at this moment — memory by kind, connections
+     by state, the top few processes' share? → \`pie\` (at most six parts;
+     fold the rest into "other"). The same parts over time → \`stacked\`.
+  3. Is it a ranking — which processes use the most? → \`bars\`, six to
+     eight rows, largest first.
+  4. Is it one reading per thing over time — every core, every interface,
+     every container? → \`heat\` (up to sixteen rows).
+  5. Is it two or three readings on one scale, compared — rx and tx, user and
+     system? → \`overlay\`. Of different magnitudes — processes and threads,
+     bytes and packets? → \`split\`.
+  6. Is it two properties of many things — memory against cpu per process?
+     → \`scatter\`.
+  7. Otherwise one reading over time → \`area\`, or \`line\` for one that
+     hovers in a narrow band.
+Then check it will read well at a glance: a fixed axis where the range is
+known (percentages 0–100), a short label, short series names for the
+legend, no more parts or rows than fit, and no chart that would sit at zero
+forever. Say the choice in your one sentence — "Stacked, since these are
+shares of the whole." — so the reader knows why it looks the way it does.
+
 ## The \`:::chart\` block
 
 A container directive whose body is JavaScript that runs in the isolate:

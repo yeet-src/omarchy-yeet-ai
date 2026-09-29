@@ -62,7 +62,7 @@ const EXAMPLES = [
   "how full is the swap?",
   "what is the load average over 1, 5 and 15 minutes?",
   "how many tcp connections are there, by state?",
-  "how do processes compare on memory against cpu?",
+  "how do processes compare on memory against threads?",
   "how many processes and threads are running?",
 ];
 const SHOWN = 3; /* bubbles on show at once, from the ten */
