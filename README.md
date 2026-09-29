@@ -2,26 +2,25 @@
 
 Ask AI for a chart of this host, from the [Omarchy](https://omarchy.org)
 bar. The bar item reads `yeet:ai`; click it and a panel drops down with
-one input. Type a question — *cpu*, *top processes by memory*, *network
-throughput on eth0* — and the model does not describe the reading. It
+one input and three example questions. Ask — *how busy is each cpu
+core?*, *which processes use the most memory?*, *how much network
+traffic is there?* — and the model does not describe the reading. It
 writes the instrument that takes it: a subscription over the system
-graph, running in a yeet isolate on the machine, drawn live in braille
-under the question.
+graph, running in a yeet isolate on the machine, and says in one
+sentence which chart it chose and why. The chart is drawn in the
+theme's colours, live, in a grid that grows with every question.
 
-```
-;; network throughput
-Bytes per second in and out of the default interface.
-throughput                                     rx 1.2M/s
-rx                                               1.2M/s
-⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣠⣴⣶⣿⣿⣿⣷⣄
-tx                                                42K/s
-⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣠⣤⣤⣄⣀⣀
-0B/s–1.5M/s                                   61 samples
-```
+Ten kinds: `area`, `line`, `overlay`, `stacked`, `split` and `heat` over
+readings in time; `gauge` for one reading with a ceiling; `bars` and
+`pie` for a ranking or the parts of a whole; `scatter` for two
+properties of many things. A new sample slides in from the right, a
+changed bar or sector eases to its new size, and the head of a live
+line pulses. Series take the theme's accent and hues turned from it, so
+the charts belong to whatever theme is running.
 
 This is a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
-with the fixed charts taken out and the model put in. The character
-grid, the braille, the theme-following `heat` colours and the
+with the fixed charts taken out and the model put in. The bar item's
+braille sparkline, the theme-following colours and the
 subscription-not-polling stance are all proctop's.
 
 ## How a question becomes a chart
@@ -68,12 +67,20 @@ Attributes on the block set the axis (`min= max=`), the unit (`%`, `B`,
 `id=` that keeps a chart's history across a rewrite. A body that
 returns a value instead of subscribing is polled on `live=` ms.
 
-`kind=` says how several series share a graph: `area` (filled from the
-baseline, the default for one series), `line` (a traced line),
-`stacked` (bands of a whole, each on the sum of the ones before it, the
-band edges left unlit so they can be told apart in one colour),
-`overlay` (lines on one axis), or `split` (one small graph each, the
-default for several). A ranking is always horizontal bars.
+`kind=` says how the data is drawn, and the prompt walks the model
+through choosing it before it writes: a reading with a ceiling is a
+`gauge`, parts of a whole a `pie` now or `stacked` over time, a ranking
+`bars`, one reading per thing over time a `heat` map, a comparison an
+`overlay`, readings of different magnitudes a `split`, two properties
+of many things a `scatter`, and one reading over time an `area` or
+`line`. The drawing is the framework's `<chart>` node, a Canvas that
+takes the data as JSON and paints it in the theme's colours.
+
+Charts tile a single grid: one column, then two from the second chart,
+three from the fifth and four from the tenth, or pinned with the `⊞`
+button, and never more than the screen has room for. The panel widens
+to hold them and scrolls within what the screen leaves. Under each
+chart sits the model's sentence; `×` on a heading removes its question.
 
 The model does not guess field names. At start the isolate introspects
 the system graph and renders it as compact SDL — types, arguments,
@@ -154,7 +161,7 @@ under `app/`:
 app/page.jsx       the panel, the bar item, and the wiring between them
 app/directive.js   the :::chart parser — a streaming reply leaves the last block open
 app/cells.js       a running block: compile, scope, plot, teardown
-app/draw.js        braille, bars and number formatting on a character grid
+app/draw.js        the bar item's braille sparkline, axes and number formatting
 app/agent.js       the turn loop over yeet:ai, tools and repairs included
 app/tools.js       graph_schema and graph_query
 app/prompt.js      what the model is told
@@ -187,6 +194,11 @@ parser against streamed and closed replies, the braille and bar drawing,
 a cell fed by a scripted graph (plots, rates, failures, timeouts,
 teardown) and the agent loop against a scripted stream. `npm run check`
 needs `yeet` and its daemon.
+
+The three example bubbles are drawn from a bank of thirty-two
+questions spanning every kind, verified to come back as a chart that
+draws; they move on every ten seconds and on each opening of the panel,
+and Enter on the empty input asks the one in the placeholder.
 
 Logged out, the panel says so and shows the login itself: the shell
 runs `yeet login`, and the one-time URL it prints appears with a copy
