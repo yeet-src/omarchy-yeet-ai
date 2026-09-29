@@ -40,7 +40,7 @@ Text {
     return Qt.hsla((a.hslHue + i * 0.11) % 1, Math.min(1, a.hslSaturation * 0.95), a.hslLightness, 1)
   }
 
-  function escape(s) {
+  function escapeHtml(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   }
 
@@ -64,16 +64,16 @@ Text {
     pattern.lastIndex = 0
     var m
     while ((m = pattern.exec(text)) !== null) {
-      out += space(escape(text.slice(last, m.index)))
+      out += space(escapeHtml(text.slice(last, m.index)))
       var color = m[1] !== undefined ? tone(3)
                 : m[2] !== undefined ? tone(1)
                 : m[3] !== undefined ? tone(0)
                 : tone(2)
-      out += "<font color=\"" + color.toString() + "\">" + space(escape(m[0])) + "</font>"
+      out += "<font color=\"" + color.toString() + "\">" + space(escapeHtml(m[0])) + "</font>"
       last = m.index + m[0].length
       if (m[0].length === 0) pattern.lastIndex += 1
     }
-    out += space(escape(text.slice(last)))
+    out += space(escapeHtml(text.slice(last)))
     return out
   }
 }
