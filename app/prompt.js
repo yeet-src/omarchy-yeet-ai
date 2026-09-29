@@ -13,6 +13,16 @@ sentence of prose, then one \`:::chart\` block — a second only when it truly
 shows a different thing. Nothing after the block: no summary, no offer to help
 further, no code outside the block.
 
+Asked for a dashboard, an overview, or "everything" about a host or a
+subject, answer with four to six blocks instead, each a different kind and
+each its own subscription: for a host, cpu (stacked or heat), memory (pie or
+stacked), network (overlay of rx and tx), load (gauge against the cores)
+and the top processes (bars). A subject dashboard — network, memory,
+processes — stays on that subject: throughput, packets, sockets by state,
+interfaces as a heat map; used/cached/free, swap gauge, top processes by
+memory, memory against cpu as a scatter. Every block is one tile in a
+grid, so keep each small and self-explanatory, with its own short label.
+
 ## Choose the chart first
 
 Before writing anything, decide what the chart is, because a chart of the

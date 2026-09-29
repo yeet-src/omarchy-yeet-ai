@@ -97,6 +97,12 @@ const EXAMPLES = [
   /* two properties of many things — scatter */
   "memory against threads, per process?",
   "memory against open files, per process?",
+  /* several at once — a dashboard */
+  "show me a dashboard of this host",
+  "give me a network dashboard",
+  "give me a memory dashboard",
+  "give me a process dashboard",
+  "show me everything about the cpu",
 ];
 const SHOWN = 3; /* bubbles on show at once */
 const ROTATE_MS = 10000; /* …and how often they move on */
