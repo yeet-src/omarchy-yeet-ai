@@ -476,7 +476,7 @@ export default function Page() {
         <Show when={drew()}>
           <chart
             kind={kind()}
-            data={payload()}
+            payload={payload()}
             min={attr("min")}
             max={attr("max")}
             unit={attr("unit")}

@@ -1,9 +1,9 @@
 import QtQuick
 import qs.Commons
 
-// <chart kind data min max unit chartWidth chartHeight>  a drawn chart.
+// <chart kind payload min max unit chartWidth chartHeight>  a drawn chart.
 //
-// `data` is JSON, one of three shapes:
+// `payload` is JSON, one of three shapes:
 //   { series: { name: [numbers…] } }   readings over time, newest last
 //   { bars: [{ label, value }] }        a ranking, or the parts of a whole
 //   { points: [{ x, y }] }              a scatter
@@ -27,7 +27,7 @@ Item {
   signal ev(string type, var payload)
 
   property string kind: "area"
-  property string data: "{}"
+  property string payload: "{}"
   property string min: ""
   property string max: ""
   property string unit: ""
@@ -47,9 +47,9 @@ Item {
   property real t: 1
   property bool first: true
 
-  onDataChanged: {
+  onPayloadChanged: {
     var next = {}
-    try { next = JSON.parse(data) } catch (e) { next = {} }
+    try { next = JSON.parse(payload) } catch (e) { next = {} }
     prev = shown
     shown = next
     tween.restart()
