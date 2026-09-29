@@ -41,8 +41,17 @@ Attributes (all optional):
   - \`min=\` / \`max=\` — a fixed axis. Give both for a percentage; otherwise the
     axis frames the window's own min–max, which is what makes a flat memory
     series legible.
-  - \`rows=\` — braille rows per series, 1–8, default 4. Use 2 for a chart of
-    several series so the panel stays short.
+  - \`kind=\` — how the series are drawn:
+      * \`area\` — filled from the baseline (the default for one series);
+      * \`line\` — a traced line, better for a reading that hovers in a band;
+      * \`stacked\` — several series as bands of a whole, each on top of the
+        last, e.g. cpu user/system/iowait, or memory used/cached/free;
+      * \`overlay\` — several series as lines on one axis, for a comparison,
+        e.g. rx against tx;
+      * \`split\` — one small graph per series (the default for several).
+    A ranking (\`plot\` of an array) is always horizontal bars.
+  - \`rows=\` — braille rows per graph, 1–8, default 4. Use 2 for a \`split\`
+    of several series so the panel stays short.
   - \`live=\` — milliseconds. Only for a body that RETURNS a value instead of
     subscribing: the body then re-runs on that interval.
   - \`id=\` — a stable identity, so a re-written block keeps its history.
@@ -70,10 +79,18 @@ What a body has in scope:
   - \`log(...)\` — to the daemon log, for debugging only.
 
 Rules for the body:
-  - Call \`graph_schema\` before writing your first query in a conversation —
-    never guess field names — and \`graph_query\` when you are unsure of a
-    shape or a magnitude. A query that is rejected comes back with its error
-    text; read it and fix the query.
+  - The whole schema is at the end of this prompt. Use only fields that are
+    in it, spelled as they are there. \`graph_schema\` returns a type's
+    fields with their full descriptions; \`graph_query\` shows a real
+    sample — use it when you are unsure of a shape or a magnitude. A query
+    that is rejected comes back with its error text; read it and fix it.
+  - Read the \`!\` marks. A field without \`!\` can be null, and the
+    graph does return nulls: a process that exits mid-read has \`stat: null\`
+    and \`status: null\`, an interface may lack a counter. Guard every
+    nullable step (\`p.stat?.rss_bytes\`, \`.filter((p) => p.stat)\`) and
+    never \`plot\` a NaN. A callback that throws marks the chart broken.
+  - Data arrives at the callback already unwrapped: \`d.kernel_stats\`, not
+    \`d.data.kernel_stats\`. Match the nesting of the selection you wrote.
   - Keep selections narrow: ask only for the fields you plot. \`procs\` is every
     process on the host, so never select \`procs { fds }\`.
   - Counters (bytes, ticks, runtimes) are cumulative: chart their \`rate()\`,
@@ -92,6 +109,14 @@ nothing else.`;
 /* The width the panel can hold, told to the model per turn: a label or a
  * ranking that fits 48 columns does not fit 32. */
 export const context = (cols) => `The panel is ${cols} characters wide right now.`;
+
+/* The prompt with the schema under it. `!` is the mark the model has to
+ * read, so the section says what it means once more, right above the
+ * types. */
+export const withSchema = (sdl) =>
+  `${SYSTEM}\n\n## The schema\n\nsys_graph, as introspected on this host. Every Query field also exists as a\n`
+  + `subscription with the same arguments. \`T!\` is never null; \`T\` can be; \`[T!]!\`\n`
+  + `is a list that exists whose elements exist.\n\n${sdl}`;
 
 /* What is said to the model when a chart it wrote never drew. */
 export const repair = (block, error) =>

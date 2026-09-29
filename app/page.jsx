@@ -4,8 +4,9 @@ import { runTool, stream } from "yeet:ai";
 import { createAgent } from "./agent.js";
 import { createCell } from "./cells.js";
 import { keyOf, parse } from "./directive.js";
-import { axis, bars, braille, clip, fmt, line, rowHeat } from "./draw.js";
-import { SYSTEM, context, repair } from "./prompt.js";
+import { axis, bars, braille, chart, clip, fmt, line, rowHeat, stackedTotals } from "./draw.js";
+import { SYSTEM, context, repair, withSchema } from "./prompt.js";
+import { loadSchema } from "./schema.js";
 import { createTools } from "./tools.js";
 
 /* The whole plugin is one page. <bar> is the item in the bar — `yeet:ai`,
@@ -25,7 +26,19 @@ import { createTools } from "./tools.js";
  * No colour is named here: `heat` takes one from the theme, so the
  * panel follows whatever theme is running. */
 
-const MODEL = "claude-sonnet-5";
+/* The models the pull-down offers. The platform adapts one request
+ * shape to whichever provider serves the name. */
+const MODELS = [
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-haiku-4-5",
+  "claude-fable-5",
+  "gpt-5",
+  "gpt-5-mini",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+];
+const DEFAULT_MODEL = MODELS[0];
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const BAR_W = 4; /* braille cells for the bar item's sparkline: 8 samples */
 const DEFAULT_ROWS = 4;
@@ -62,6 +75,11 @@ export default function Page() {
   const [cards, setCards] = createSignal([]);
   const [cols, setCols] = createSignal(48);
   const [open, setOpen] = createSignal(false);
+  const [model, setModel] = createSignal(DEFAULT_MODEL);
+  const [picking, setPicking] = createSignal(false);
+  /* The graph's schema, introspected once and carried in every prompt.
+   * Until it is in, the status line says so and a question waits. */
+  const [schema, setSchema] = createSignal(null);
   const [tick, setTick] = createSignal(0);
   /* Bumped when a cell is added or released, so a lookup in the map
    * below re-runs. The map itself is plain: it is mutated in place. */
@@ -72,10 +90,27 @@ export default function Page() {
    * block's identity is its code (see directive.js), so re-parsing the
    * reply as it streams finds the same cell rather than restarting it. */
   const cells = new Map();
+  /* Cards with a repair pending, so a chart failing every tick asks once. */
+  const armed = new Set();
   let nextId = 1;
 
   const { tools } = createTools(graph.query);
-  const agent = createAgent({ model: MODEL, system: SYSTEM, tools, stream, runTool, on: { usage: setUsage } });
+  const agent = createAgent({
+    model: () => model(),
+    system: () => (schema() ? withSchema(schema().sdl) : SYSTEM),
+    tools,
+    stream,
+    runTool,
+    on: { usage: setUsage },
+  });
+
+  const schemaLoad = loadSchema(graph.query).then(
+    (loaded) => {
+      console.log(`askai: schema ${loaded.types} types, ${loaded.bytes} bytes`);
+      setSchema(loaded);
+    },
+    (error) => console.warn(`askai: schema introspection failed, prompting without it: ${error?.message ?? error}`),
+  );
 
   /* The spinner is the only clock here, so it runs only while a turn
    * is in flight. */
@@ -108,7 +143,19 @@ export default function Page() {
       const key = cellKey(cardId, seg);
       if (cells.has(key)) continue;
       const [view, setView] = createSignal(null);
-      const cell = createCell(seg, { graph, notify: (v) => setView({ ...v }) });
+      const cell = createCell(seg, {
+        graph,
+        notify: (v) => {
+          setView({ ...v });
+          /* A chart that starts failing after it drew — a field that is
+           * null only sometimes — is worth a repair too, not only one
+           * that never drew. */
+          if (v.error && !armed.has(cardId)) {
+            armed.add(cardId);
+            doctor(cardId).catch(() => {}).finally(() => armed.delete(cardId));
+          }
+        },
+      });
       cells.set(key, { cell, view });
       setView({ ...cell.view });
       cell.run();
@@ -148,7 +195,10 @@ export default function Page() {
     const broken = parse(card.text)
       .filter((seg) => isChart(seg) && !seg.open)
       .map((seg) => ({ seg, entry: cells.get(cellKey(id, seg)) }))
-      .find(({ entry }) => entry && entry.view()?.error && !entry.view().samples);
+      .find(({ entry }) => {
+        const v = entry?.view();
+        return v?.error && (v.samples === 0 || v.fails >= 3);
+      });
     if (!broken) return;
 
     const { seg, entry } = broken;
@@ -188,9 +238,10 @@ export default function Page() {
     const id = nextId++;
     setCards((all) => [{ id, question, text: "", error: null, repairs: 0, done: false, cancelled: false }, ...all]);
     setBusy(true);
-    setStatus("thinking");
+    setStatus(schema() ? "thinking" : "reading schema");
 
     try {
+      await schemaLoad;
       const outcome = await agent.ask(question, {
         context: context(cols()),
         on: {
@@ -253,14 +304,17 @@ export default function Page() {
   };
 
   const statusLine = () => {
-    if (busy()) return `${spin()} ${status()} · ${MODEL}`;
+    if (busy()) return `${spin()} ${status()}`;
+    if (!schema()) return "reading schema…";
     const tokens = usage();
-    const cost = tokens ? ` · ${tokens.input_tokens}in/${tokens.output_tokens}out` : "";
+    const cost = tokens ? `${tokens.input_tokens}in/${tokens.output_tokens}out` : "";
     const charts = chartCount();
     /* `live` while the panel is open: the shell reports open and close,
      * and the charts keep sampling either way — the tag says someone is
      * looking. */
-    return `${MODEL}${cost}${charts ? ` · ${charts} chart${charts === 1 ? "" : "s"}` : ""}${open() ? " · live" : ""}`;
+    return [cost, charts ? `${charts} chart${charts === 1 ? "" : "s"}` : "", open() ? "live" : ""]
+      .filter(Boolean)
+      .join(" · ");
   };
 
   const toggleSource = (key) => setSources((all) => ({ ...all, [key]: !all[key] }));
@@ -276,13 +330,26 @@ export default function Page() {
     const rows = () => clampInt(Number(seg().attrs.rows) || DEFAULT_ROWS, 1, 8);
     const width = () => cols();
     const windowOf = (name) => view().series[name].slice(-width() * 2);
-    /* One axis for every series in the block, over the window on show. */
+    const single = () => view()?.order.length === 1;
+    /* How the series share the graph: what the block said, else one
+     * graph for one series and a graph each for several. */
+    const kind = () => {
+      const k = seg().attrs.kind;
+      if (typeof k === "string" && k !== "bars") return k;
+      return single() ? "area" : "split";
+    };
+    /* One axis for every series in the block, over the window on show —
+     * for a stacked chart, over the totals it is drawn to. */
     const band = () => {
       const v = view();
-      const seen = v.order.flatMap((name) => windowOf(name));
+      const windows = v.order.map(windowOf);
+      const seen = kind() === "stacked" ? stackedTotals(windows) : windows.flat();
       return axis(seen, num(seg().attrs.min), num(seg().attrs.max));
     };
-    const single = () => view()?.order.length === 1;
+    const legend = () => {
+      const v = view();
+      return clip(v.order.map((name) => `${name} ${fmt(v.latest[name], unit())}`).join(" · "), width());
+    };
     const footer = () => {
       const v = view();
       const b = band();
@@ -323,18 +390,32 @@ export default function Page() {
         </Show>
 
         <Show when={view() && !view().bars && view().order.length > 0}>
-          <Index each={view().order}>
-            {(name) => (
+          <Show
+            when={kind() === "split"}
+            fallback={
               <column gap={0}>
                 <Show when={!single()}>
-                  <text size="caption" tone="muted">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
+                  <text size="caption" tone="muted">{legend()}</text>
                 </Show>
-                <Index each={braille(windowOf(name()), width(), band().lo, band().hi, rows())}>
+                <Index each={chart(view().order.map(windowOf), width(), band().lo, band().hi, rows(), kind())}>
                   {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
                 </Index>
               </column>
-            )}
-          </Index>
+            }
+          >
+            <Index each={view().order}>
+              {(name) => (
+                <column gap={0}>
+                  <Show when={!single()}>
+                    <text size="caption" tone="muted">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
+                  </Show>
+                  <Index each={braille(windowOf(name()), width(), band().lo, band().hi, rows())}>
+                    {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
+                  </Index>
+                </column>
+              )}
+            </Index>
+          </Show>
           <text size="caption" tone="muted">{footer()}</text>
         </Show>
 
@@ -350,7 +431,7 @@ export default function Page() {
 
   return (
     <>
-      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI — ${chartCount()} charts · ${MODEL}`}>
+      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI — ${chartCount()} charts · ${model()}`}>
         {barText()}
       </bar>
 
@@ -371,7 +452,17 @@ export default function Page() {
           }}
         />
 
+        {/* The model is a pull-down: the button names the current one and
+            opens a column of the rest under it; picking one closes it. */}
         <row gap={4}>
+          <button
+            horizontalPadding={4}
+            verticalPadding={0}
+            tooltipText="Choose the model"
+            onClick={() => setPicking(!picking())}
+          >
+            {`${model()} ${picking() ? "▴" : "▾"}`}
+          </button>
           <text size="caption" tone="muted">{statusLine()}</text>
           <Show when={busy()}>
             <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
@@ -379,6 +470,25 @@ export default function Page() {
             </button>
           </Show>
         </row>
+        <Show when={picking()}>
+          <column gap={0}>
+            <Index each={MODELS}>
+              {(name) => (
+                <button
+                  horizontalPadding={4}
+                  verticalPadding={0}
+                  selected={name() === model()}
+                  onClick={() => {
+                    setModel(name());
+                    setPicking(false);
+                  }}
+                >
+                  {name()}
+                </button>
+              )}
+            </Index>
+          </column>
+        </Show>
 
         <Show when={!cards().length}>
           <text size="bodySmall" tone="muted" wrap fill>{HINT}</text>

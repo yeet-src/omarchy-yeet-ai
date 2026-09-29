@@ -75,6 +75,7 @@ export function createCell(block, { graph, notify = () => {}, now = Date.now }) 
     if (released) return;
     view.error = String(error?.message ?? error);
     view.fails += 1;
+    console.warn(`chart "${block.label || "?"}" failed (${view.fails}): ${view.error}`);
     changed();
   };
 

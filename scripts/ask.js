@@ -16,7 +16,8 @@ import { runTool, stream } from "yeet:ai";
 import { createAgent } from "../app/agent.js";
 import { createCell } from "../app/cells.js";
 import { parse } from "../app/directive.js";
-import { SYSTEM, context } from "../app/prompt.js";
+import { context, withSchema } from "../app/prompt.js";
+import { loadSchema } from "../app/schema.js";
 import { createTools } from "../app/tools.js";
 
 const question = yeet.args._.join(" ").trim();
@@ -24,7 +25,7 @@ if (!question) {
   console.log('usage: yeet run scripts/ask.js [--model m] [--seconds n] "question"');
   yeet.exit();
 }
-const model = yeet.args.model ?? "claude-sonnet-5";
+const model = yeet.args.model ?? "claude-opus-5";
 const seconds = Number(yeet.args.seconds) || 6;
 
 const graph = {
@@ -33,10 +34,13 @@ const graph = {
   unsubscribe: (t) => yeet.graph.unsubscribe(t),
 };
 
+const schema = await loadSchema(graph.query);
+console.log(`schema: ${schema.types} types, ${schema.bytes} bytes`);
+
 const { tools } = createTools(graph.query);
 const agent = createAgent({
   model,
-  system: SYSTEM,
+  system: withSchema(schema.sdl),
   tools,
   stream,
   runTool,

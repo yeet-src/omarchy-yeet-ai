@@ -78,3 +78,41 @@ test("rowHeat: top hot, bottom warm, single row full", () => {
   assert.ok(Math.abs(rowHeat(3, 4) - 0.45) < 1e-9);
   assert.equal(rowHeat(0, 1), 1);
 });
+
+import { chart, stackedTotals } from "../app/draw.js";
+
+const dots = (line) => [...line].map((ch) => ch.charCodeAt(0) - 0x2800);
+
+test("chart line: a jump between samples is drawn as a vertical run", () => {
+  /* two samples in one cell: low then high — the right column must light
+   * every dot between, and the left only its own level */
+  const [top, bottom] = chart([[0, 100]], 1, 0, 100, 2);
+  assert.deepEqual([top, bottom], braille([0, 100], 1, 0, 100, 2), "area is the default");
+  const [ltop, lbottom] = chart([[0, 100]], 1, 0, 100, 2, "line");
+  assert.equal(dots(lbottom)[0] & 0x01, 0, "left column bottom: only the lowest dot (0x40)");
+  assert.equal(dots(lbottom)[0] & 0x40, 0x40);
+  assert.equal(dots(ltop)[0] & 0x80, 0x80, "right column reaches the top");
+  assert.equal(dots(lbottom)[0] & 0x08, 0x08, "and lights the run below it");
+  const [ftop] = chart([[100, 100]], 1, 0, 100, 2, "line");
+  assert.equal(dots(ftop)[0], 0x01 | 0x08, "a flat line is one dot per column");
+});
+
+test("chart stacked: bands are separated by an unlit edge and share the total's axis", () => {
+  const [line] = chart([[25], [25]], 1, 0, 100, 1, "stacked");
+  /* one sample sits in the right column; total 50% of 4 levels = 2 dots
+   * (heights 1 and 2 are 0x80 and 0x20 there); the inner edge at 25% is
+   * height 1, left unlit */
+  const bits = dots(line)[0];
+  assert.equal(bits & 0x20, 0x20, "height 2 lit");
+  assert.equal(bits & 0x80, 0, "height 1 (the edge) unlit");
+  assert.equal(bits & 0x10, 0, "height 3 dark");
+  assert.deepEqual(stackedTotals([[1, 2], [3, 4]]), [4, 6]);
+  assert.deepEqual(stackedTotals([[1, 2], [4]]), [1, 6]);
+});
+
+test("chart overlay: the union of two lines, exact width", () => {
+  const lines = chart([[10, 90, 10], [90, 10, 90]], 6, 0, 100, 2, "overlay");
+  assert.equal(lines.length, 2);
+  for (const l of lines) assert.equal(l.length, 6);
+  assert.ok(lines.some((l) => l !== "⠀⠀⠀⠀⠀⠀"));
+});

@@ -64,18 +64,28 @@ the model may still be writing the next one — with a small scope:
 - `state`, `onCleanup(fn)`, `log(...)`.
 
 Attributes on the block set the axis (`min= max=`), the unit (`%`, `B`,
-`B/s`, or any suffix), the braille rows per series (`rows=`), and an
+`B/s`, or any suffix), the braille rows per graph (`rows=`), and an
 `id=` that keeps a chart's history across a rewrite. A body that
 returns a value instead of subscribing is polled on `live=` ms.
 
-Before it writes a query the model reads the schema — `graph_schema`
-and `graph_query` are its two tools, the same pair the yeet
-`graph-chat` example uses — so it does not guess field names. When a
-block still fails (a bad selection, a wrong shape), the error goes back
-to the model and the rewritten block is substituted in place, bounded at
-two repairs per question. `src` on any chart shows the code that is
-running, because the code was written by a model and is running on your
-host.
+`kind=` says how several series share a graph: `area` (filled from the
+baseline, the default for one series), `line` (a traced line),
+`stacked` (bands of a whole, each on the sum of the ones before it, the
+band edges left unlit so they can be told apart in one colour),
+`overlay` (lines on one axis), or `split` (one small graph each, the
+default for several). A ranking is always horizontal bars.
+
+The model does not guess field names. At start the isolate introspects
+the system graph and renders it as compact SDL — types, arguments,
+descriptions clipped to a line, and the `!` marks that say which fields
+can be null — and that schema rides in every prompt, with the rule that
+a nullable step is guarded. `graph_schema` and `graph_query` are its
+two tools for looking closer, the same pair the yeet `graph-chat`
+example uses. When a block still fails (a bad selection, a field that is
+null only sometimes), the error goes back to the model and the
+rewritten block is substituted in place, bounded at two repairs per
+question. `src` on any chart shows the code that is running, because
+the code was written by a model and is running on your host.
 
 The bar item shows the newest chart's last eight samples and its latest
 value, so a chart keeps reporting after the panel is shut.
@@ -123,8 +133,9 @@ yeet login
 Other package managers are covered in the
 [manual installation guide](https://yeet.cx/docs/install/manual-installation).
 
-The model is `claude-sonnet-5`, set by `MODEL` at the top of
-`app/page.jsx`.
+The model is chosen from a pull-down in the panel — `claude-opus-5` by
+default — from the list in `MODELS` at the top of `app/page.jsx`. The
+choice lives as long as the isolate does.
 
 ## Remove
 
@@ -147,6 +158,7 @@ app/draw.js        braille, bars and number formatting on a character grid
 app/agent.js       the turn loop over yeet:ai, tools and repairs included
 app/tools.js       graph_schema and graph_query
 app/prompt.js      what the model is told
+app/schema.js      the system graph introspected into the SDL the prompt carries
 ```
 
 Rebuilding needs nothing outside this repository. The framework it is built

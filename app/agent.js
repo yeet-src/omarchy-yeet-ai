@@ -16,6 +16,10 @@ const MAX_HISTORY = 12; /* messages kept across turns */
 
 export function createAgent({ model, system, tools, stream, runTool, on = {}, maxTokens = 2048 }) {
   const history = [];
+  /* Either may be a value or a function of no arguments, read at the
+   * start of every turn: the panel switches models between questions,
+   * and the schema the prompt carries arrives after the page is up. */
+  const read = (v) => (typeof v === "function" ? v() : v);
   let live = null;
   let busy = false;
 
@@ -57,9 +61,10 @@ export function createAgent({ model, system, tools, stream, runTool, on = {}, ma
     try {
       for (let turn = 1; turn <= MAX_TURNS; turn++) {
         const last = turn === MAX_TURNS;
+        const base = read(system);
         const chat = stream({
-          model,
-          system: context ? `${system}\n\n${context}` : system,
+          model: read(model),
+          system: context ? `${base}\n\n${context}` : base,
           messages,
           /* Withholding the tools on the last turn forces an answer out
            * of what it has rather than one more unread query. */

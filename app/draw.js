@@ -18,26 +18,89 @@ const windowOf = (samples, slots) =>
     ? samples.slice(-slots)
     : Array(slots - samples.length).fill(undefined).concat(samples);
 
-export function braille(samples, width, lo, hi, rows = 4) {
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+/* A sample's height in dot levels, 1..levels. Floored at one so a
+ * near-zero sample still draws the baseline rather than a gap; null for
+ * a slot with no sample. */
+const level = (value, lo, hi, levels) =>
+  value === undefined || value === null || !Number.isFinite(value)
+    ? null
+    : Math.max(1, Math.min(levels, Math.round(clamp01((value - lo) / (hi - lo || 1)) * levels)));
+
+/* One braille graph of one or more series. `kind` is how they share it:
+ *
+ *   area     each series filled from the baseline (one series: the
+ *            level-meter look; several: their union)
+ *   line     each series traced as a line, the run between one sample
+ *            and the next drawn vertically so the trace is continuous
+ *   overlay  `line`, for several series on one axis
+ *   stacked  bands of a whole: each series sits on the sum of the ones
+ *            before it, and the band edges are left unlit so the bands
+ *            can be told apart with one colour per row
+ *
+ * Every line is exactly `width` characters. */
+export function chart(series, width, lo, hi, rows = 4, kind = "area") {
   const levels = rows * 4;
-  const span = hi - lo || 1;
-  const window = windowOf(samples, width * 2);
+  const slots = width * 2;
+  const windows = series.map((s) => windowOf(s, slots));
+  /* lit[l][x]: dot at height l+1 (from the baseline) in sample column x */
+  const lit = Array.from({ length: levels }, () => new Uint8Array(slots));
+
+  if (kind === "stacked") {
+    for (let x = 0; x < slots; x++) {
+      let sum = 0;
+      let any = false;
+      const edges = [];
+      for (const w of windows) {
+        const v = w[x];
+        if (v === undefined || !Number.isFinite(v)) continue;
+        sum += Math.max(0, v);
+        any = true;
+        edges.push(sum);
+      }
+      if (!any) continue;
+      const total = level(sum, lo, hi, levels);
+      for (let l = 1; l <= total; l++) lit[l - 1][x] = 1;
+      for (const edge of edges.slice(0, -1)) {
+        const b = level(edge, lo, hi, levels);
+        if (b !== null && b < total) lit[b - 1][x] = 0;
+      }
+    }
+  } else if (kind === "line" || kind === "overlay") {
+    for (const w of windows) {
+      let prev = null;
+      for (let x = 0; x < slots; x++) {
+        const l = level(w[x], lo, hi, levels);
+        if (l === null) {
+          prev = null;
+          continue;
+        }
+        const from = prev ?? l;
+        for (let k = Math.min(from, l); k <= Math.max(from, l); k++) lit[k - 1][x] = 1;
+        prev = l;
+      }
+    }
+  } else {
+    for (const w of windows) {
+      for (let x = 0; x < slots; x++) {
+        const l = level(w[x], lo, hi, levels);
+        if (l === null) continue;
+        for (let k = 1; k <= l; k++) lit[k - 1][x] = 1;
+      }
+    }
+  }
+
   const lines = [];
   for (let r = 0; r < rows; r++) {
     let line = "";
     for (let x = 0; x < width; x++) {
       let bits = 0;
       for (let col = 0; col < 2; col++) {
-        const value = window[x * 2 + col];
-        if (value === undefined || !Number.isFinite(value)) continue;
-        /* Floored at one level so a near-zero sample still draws the
-         * baseline rather than a gap. */
-        const ratio = Math.max(0, Math.min(1, (value - lo) / span));
-        const fill = Math.max(1, Math.round(ratio * levels));
         const dots = col === 0 ? LEFT : RIGHT;
         for (let k = 0; k < 4; k++) {
-          const depth = r * 4 + k;
-          if (levels - depth <= fill) bits |= dots[k];
+          const height = levels - (r * 4 + k); /* 1 at the bottom row's last dot */
+          if (lit[height - 1][x * 2 + col]) bits |= dots[k];
         }
       }
       line += String.fromCharCode(0x2800 + bits);
@@ -46,6 +109,29 @@ export function braille(samples, width, lo, hi, rows = 4) {
   }
   return lines;
 }
+
+/* Cumulative totals per slot, for the axis a stacked chart is drawn on. */
+export function stackedTotals(series) {
+  const length = Math.max(0, ...series.map((s) => s.length));
+  const totals = [];
+  for (let i = 0; i < length; i++) {
+    let sum = 0;
+    let any = false;
+    for (const s of series) {
+      const v = s[s.length - length + i];
+      if (Number.isFinite(v)) {
+        sum += Math.max(0, v);
+        any = true;
+      }
+    }
+    if (any) totals.push(sum);
+  }
+  return totals;
+}
+
+export const braille = (samples, width, lo, hi, rows = 4) => chart([samples], width, lo, hi, rows, "area");
+
+export const KINDS = ["area", "line", "stacked", "overlay", "split", "bars"];
 
 /* Top row hottest, bottom row coolest, floored well above 0 so the
  * lowest row never lands on `muted` and fades out. */
