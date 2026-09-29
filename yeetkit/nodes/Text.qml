@@ -42,6 +42,8 @@ Text {
 
   anchors.left: fill && parent && !inRow ? parent.left : undefined
   anchors.right: fill && parent && !inRow ? parent.right : undefined
+  /* In a row, level with the buttons beside it rather than top-aligned. */
+  anchors.verticalCenter: inRow && parent ? parent.verticalCenter : undefined
   width: fill && inRow ? remaining() : implicitWidth
   wrapMode: wrap ? Text.WordWrap : Text.NoWrap
   elide: !wrap && fill ? Text.ElideRight : Text.ElideNone

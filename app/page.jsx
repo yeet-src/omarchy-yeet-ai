@@ -707,6 +707,7 @@ export default function Page() {
               setDraft(e.value.trim() || shown()[0]);
               submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
             }}
+            onComplete={() => setDraft(shown()[0])}
           />
 
           {/* The model is a pull-down: the button names the current one and
