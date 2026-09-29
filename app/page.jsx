@@ -60,7 +60,6 @@ const EXAMPLES = [
   "context switches per second",
   "number of processes and threads",
 ];
-const EXAMPLE_MS = 4000;
 const SHOWN = 3; /* bubbles on show at once, from the ten */
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
@@ -124,8 +123,8 @@ export default function Page() {
   const [model, setModel] = createSignal(DEFAULT_MODEL);
   const examples = shuffle(EXAMPLES);
   const [example, setExample] = createSignal(0);
-  /* The three from the current one on, so the bubbles move with the
-   * placeholder. */
+  /* The three from the current one on. Chosen once per opening of the
+   * panel — the next three each time — and still while it is open. */
   const shown = () => Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]);
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
@@ -170,15 +169,9 @@ export default function Page() {
   const spinner = setInterval(() => {
     if (busy()) setTick((n) => n + 1);
   }, 100);
-  /* The placeholder moves on only while someone is looking and has not
-   * started typing. */
-  const cycle = setInterval(() => {
-    if (open() && !draft()) setExample((i) => (i + 1) % examples.length);
-  }, EXAMPLE_MS);
 
   onCleanup(() => {
     clearInterval(spinner);
-    clearInterval(cycle);
     for (const entry of cells.values()) entry.cell.release();
     cells.clear();
     agent.cancel().catch(() => {});
@@ -498,7 +491,10 @@ export default function Page() {
         contentWidth={420}
         gap={6}
         onCols={(e) => setCols(e.cols)}
-        onOpen={() => setOpen(true)}
+        onOpen={() => {
+          setOpen(true);
+          setExample((i) => (i + SHOWN) % examples.length);
+        }}
         onClose={() => setOpen(false)}
       >
         <input
