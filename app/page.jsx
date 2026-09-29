@@ -317,7 +317,8 @@ export default function Page() {
     setDraft("");
 
     const id = nextId++;
-    setCards((all) => [{ id, question, text: "", error: null, repairs: 0, done: false, cancelled: false }, ...all]);
+    /* Appended: a new tile takes the next free slot of the grid. */
+    setCards((all) => [...all, { id, question, text: "", error: null, repairs: 0, done: false, cancelled: false }]);
     setBusy(true);
     setStatus(schema() ? "thinking" : "reading schema");
 
@@ -359,7 +360,7 @@ export default function Page() {
 
   /* The newest chart with a time series in it, for the bar item. */
   const newest = () => {
-    for (const card of cards()) {
+    for (const card of [...cards()].reverse()) {
       for (const seg of parse(card.text)) {
         if (!isChart(seg)) continue;
         const view = entryOf(card.id, seg)?.view();
