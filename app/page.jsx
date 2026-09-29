@@ -522,9 +522,9 @@ export default function Page() {
       >
         <Show when={loggedOut()}>
           <column gap={4} fill>
-            <text bold>yeet is not logged in</text>
+            <text bold>Log in to yeet</text>
             <text size="bodySmall" wrap fill>
-              Asking reaches the model through the platform, so this host needs a login. Charts already drawn keep running.
+              Open this link to log this host in. The input comes back on its own once you have.
             </text>
             <login
               onDone={(e) => {

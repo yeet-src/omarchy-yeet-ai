@@ -120,7 +120,7 @@ Column {
     spacing: Style.spacing.sm
 
     Text {
-      text: "Waiting for the login to finish in the browser."
+      text: "Waiting for the browser…"
       color: Color.popups.text
       font.family: Style.font.family
       font.pixelSize: Style.font.bodySmall
@@ -128,7 +128,7 @@ Column {
     }
 
     Button {
-      text: root.copied ? "copied" : "copy"
+      text: root.copied ? "copied" : "copy link"
       fontSize: Style.font.bodySmall
       horizontalPadding: Style.spacing.sm
       verticalPadding: 0
