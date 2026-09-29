@@ -300,6 +300,25 @@ export default function Page() {
     setCards((all) => all.filter((card) => card.id !== cardId));
   };
 
+  /* × on a tile: one chart of several is cut out of its reply and its
+   * cell released; the only chart, or a tile with none, takes the
+   * question with it. */
+  const removeTile = (tile) => {
+    const { card, seg } = tile;
+    if (!seg || tile.siblings <= 1) {
+      remove(card.id);
+      return;
+    }
+    const entry = cells.get(cellKey(card.id, seg));
+    if (entry) {
+      entry.cell.release();
+      cells.delete(cellKey(card.id, seg));
+      setGeneration((n) => n + 1);
+    }
+    const text = card.text.slice(0, seg.start) + card.text.slice(seg.end);
+    patch(card.id, (c) => ({ ...c, text }));
+  };
+
   const label = (call) => LABELS[call.name] ?? call.name;
 
   /* The loop closes: a chart's code runs after the reply is finished,
@@ -454,8 +473,8 @@ export default function Page() {
         .filter((seg) => seg.kind === "text")
         .map((seg) => seg.text)
         .join(" ");
-      if (!charts.length) out.push({ card, seg: null, prose });
-      else for (const seg of charts) out.push({ card, seg, prose });
+      if (!charts.length) out.push({ card, seg: null, prose, first: true, siblings: 0 });
+      else charts.forEach((seg, i) => out.push({ card, seg, prose, first: i === 0, siblings: charts.length }));
     }
     return out;
   };
@@ -505,6 +524,10 @@ export default function Page() {
       return v && (v.samples > 0 || v.bars || v.points);
     };
     const attr = (name) => (typeof seg().attrs[name] === "string" ? seg().attrs[name] : "");
+    /* A question with several charts titles each by its label; the
+     * question itself heads the first. */
+    const several = () => tile().siblings > 1;
+    const heading = () => (several() && seg() ? seg().label || "chart" : card().question);
 
     return (
       <column gap={2}>
@@ -512,13 +535,18 @@ export default function Page() {
         {/* The heading wraps beside the remove button: an explicit width,
             since a text filling a row has no height until laid out. */}
         <row gap={4}>
-          <text bold wrap width={props.width - CLOSE_W}>{card().question}</text>
-          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this question" onClick={() => remove(card().id)}>
+          <text bold wrap width={props.width - CLOSE_W}>{heading()}</text>
+          <button
+            horizontalPadding={4}
+            verticalPadding={0}
+            tooltipText={several() ? "Remove this chart" : "Remove this question"}
+            onClick={() => removeTile(tile())}
+          >
             ×
           </button>
         </row>
         <row gap={4}>
-          <Show when={seg()}>
+          <Show when={seg() && !several()}>
             <text>{seg().label || ""}</text>
           </Show>
           <Show when={view() && single() && !view().bars && !view().points}>
@@ -565,7 +593,7 @@ export default function Page() {
         <Show when={!card().done && !seg()}>
           <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
         </Show>
-        <Show when={tile().prose}>
+        <Show when={tile().prose && tile().first}>
           <text size="caption" wrap fill>{tile().prose}</text>
         </Show>
         <Show when={card().error}>
