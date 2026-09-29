@@ -20,6 +20,7 @@ const HIST = 400; /* samples kept per series — more than the panel can show */
 const EVAL_TIMEOUT_MS = 10_000;
 const MIN_LIVE_MS = 250;
 const MAX_BARS = 24;
+const MAX_POINTS = 400;
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
@@ -47,6 +48,7 @@ export function createCell(block, { graph, notify = () => {}, now = Date.now }) 
     series: {}, /* name -> number[] */
     order: [], /* series names, in the order first plotted */
     bars: null, /* [{ label, value }] for a ranking */
+    points: null, /* [{ x, y, label? }] for a scatter */
     latest: {}, /* name -> last value */
     samples: 0,
     error: null,
@@ -95,7 +97,14 @@ export function createCell(block, { graph, notify = () => {}, now = Date.now }) 
    * draw yet, not a zero. */
   const plot = (value) => {
     if (released || value === null || value === undefined) return;
-    if (Array.isArray(value)) {
+    if (Array.isArray(value) && value.length && value.every((p) => p && typeof p === "object" && "x" in p && "y" in p)) {
+      /* Points: a scatter, replaced on every call. */
+      view.points = value.slice(0, MAX_POINTS).map((p) => ({
+        x: Number(p.x),
+        y: Number(p.y),
+        label: p.label === undefined ? undefined : String(p.label),
+      }));
+    } else if (Array.isArray(value)) {
       view.bars = value.slice(0, MAX_BARS).map((row) =>
         row && typeof row === "object"
           ? { label: String(row.label ?? row.name ?? ""), value: Number(row.value) }

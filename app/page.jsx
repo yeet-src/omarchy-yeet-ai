@@ -4,7 +4,7 @@ import { runTool, stream } from "yeet:ai";
 import { createAgent } from "./agent.js";
 import { createCell } from "./cells.js";
 import { keyOf, parse } from "./directive.js";
-import { axis, bars, braille, chart, clip, fmt, line, rowHeat, stackedTotals } from "./draw.js";
+import { axis, braille, clip, fmt } from "./draw.js";
 import { SYSTEM, context, repair, withSchema } from "./prompt.js";
 import { loadSchema } from "./schema.js";
 import { createTools } from "./tools.js";
@@ -40,7 +40,11 @@ const MODELS = [
 const DEFAULT_MODEL = MODELS[0];
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const BAR_W = 4; /* braille cells for the bar item's sparkline: 8 samples */
-const DEFAULT_ROWS = 4;
+const WINDOW = 120; /* samples a chart is handed */
+const CARD_W = 400; /* px, one card's chart */
+const CARD_GAP = 12;
+const CHART_H = 120;
+const MAX_COLUMNS = 4;
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
 const MAX_REPAIRS = 2;
 const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
@@ -51,14 +55,14 @@ const LABELS = { graph_schema: "reading schema", graph_query: "querying" };
  * placeholder. */
 const EXAMPLES = [
   "how busy is the cpu?",
-  "how is cpu time split between user, system and iowait?",
+  "how busy is each cpu core?",
   "how is memory split between used, cached and free?",
   "which processes use the most memory?",
-  "which processes use the most cpu?",
   "how much network traffic is there?",
+  "how full is the swap?",
   "what is the load average over 1, 5 and 15 minutes?",
   "how many tcp connections are there, by state?",
-  "how many context switches per second?",
+  "how do processes compare on memory against cpu?",
   "how many processes and threads are running?",
 ];
 const SHOWN = 3; /* bubbles on show at once, from the ten */
@@ -147,6 +151,9 @@ export default function Page() {
    * below re-runs. The map itself is plain: it is mutated in place. */
   const [generation, setGeneration] = createSignal(0);
   const [sources, setSources] = createSignal({});
+  /* Columns of cards: 0 is automatic — one, then two, up to four as
+   * cards arrive — and 1..4 pins it. */
+  const [layout, setLayout] = createSignal(0);
 
   /* `${cardId}/${blockKey}` -> { cell, view } — every chart running. A
    * block's identity is its code (see directive.js), so re-parsing the
@@ -382,7 +389,7 @@ export default function Page() {
     if (busy()) return `${spin()} ${status()}`;
     if (!schema()) return "reading schema…";
     const tokens = usage();
-    const cost = tokens ? `${tokens.input_tokens}in/${tokens.output_tokens}out` : "";
+    const cost = tokens ? `${tokens.input_tokens} in / ${tokens.output_tokens} out` : "";
     const charts = chartCount();
     /* `live` while the panel is open: the shell reports open and close,
      * and the charts keep sampling either way — the tag says someone is
@@ -394,51 +401,57 @@ export default function Page() {
 
   const toggleSource = (key) => setSources((all) => ({ ...all, [key]: !all[key] }));
 
-  /* One chart: header, the drawing, an axis line. `props.seg` is the
+  /* One chart: a header line, then the drawn chart. `props.seg` is the
    * block's accessor from <Index>, so a re-parse patches the label and
-   * the cell lookup follows the block's key. */
+   * the cell lookup follows the block's key. The drawing is the shell's
+   * <chart> node: this only hands it the data and the kind. */
   const Chart = (props) => {
     const seg = () => props.seg();
     const key = () => cellKey(props.cardId, seg());
     const view = () => entryOf(props.cardId, seg())?.view() ?? null;
     const unit = () => seg().attrs.unit;
-    const rows = () => clampInt(Number(seg().attrs.rows) || DEFAULT_ROWS, 1, 8);
-    const width = () => cols();
-    const windowOf = (name) => view().series[name].slice(-width() * 2);
     const single = () => view()?.order.length === 1;
-    /* How the series share the graph: what the block said, else one
-     * graph for one series and a graph each for several. */
+    const shape = () => (view()?.points ? "points" : view()?.bars ? "rows" : "series");
+    /* How the data is drawn: what the block said, else the plain
+     * choice for its shape. */
     const kind = () => {
       const k = seg().attrs.kind;
-      if (typeof k === "string" && k !== "bars") return k;
-      return single() ? "area" : "split";
+      if (typeof k === "string") return k;
+      if (shape() === "points") return "scatter";
+      if (shape() === "rows") return "bars";
+      return single() ? "area" : "overlay";
     };
-    /* One axis for every series in the block, over the window on show —
-     * for a stacked chart, over the totals it is drawn to. */
-    const band = () => {
+    const payload = () => {
       const v = view();
-      const windows = v.order.map(windowOf);
-      const seen = kind() === "stacked" ? stackedTotals(windows) : windows.flat();
-      return axis(seen, num(seg().attrs.min), num(seg().attrs.max));
+      if (!v) return "{}";
+      if (v.points) return JSON.stringify({ points: v.points });
+      if (v.bars) return JSON.stringify({ bars: v.bars });
+      const series = {};
+      for (const name of v.order) series[name] = v.series[name].slice(-WINDOW);
+      return JSON.stringify({ series });
     };
-    const legend = () => {
+    const height = () => {
       const v = view();
-      return clip(v.order.map((name) => `${name} ${fmt(v.latest[name], unit())}`).join(" · "), width());
+      if (!v) return CHART_H;
+      if (v.bars) return Math.max(60, Math.min(260, 22 * v.bars.length + 8));
+      if (kind() === "split" || kind() === "sparks") return Math.max(CHART_H, 44 * v.order.length);
+      if (kind() === "heat") return Math.max(60, Math.min(260, 16 * v.order.length + 8));
+      return CHART_H;
     };
-    const footer = () => {
+    const drew = () => {
       const v = view();
-      const b = band();
-      return line(`${fmt(b.lo, unit())}–${fmt(b.hi, unit())}`, `${v.samples} samples`, width());
+      return v && (v.samples > 0 || v.bars || v.points);
     };
+    const attr = (name) => (typeof seg().attrs[name] === "string" ? seg().attrs[name] : "");
 
     return (
-      <column gap={0}>
+      <column gap={2}>
         <row gap={4}>
           <Show
-            when={view() && single() && !view().bars}
-            fallback={<text bold>{clip(seg().label || "chart", width() - BUTTON_COLS)}</text>}
+            when={view() && single() && !view().bars && !view().points}
+            fallback={<text bold>{clip(seg().label || "chart", props.cols - BUTTON_COLS)}</text>}
           >
-            <text bold>{clip(seg().label || "chart", width() - BUTTON_COLS - 9)}</text>
+            <text bold>{clip(seg().label || "chart", props.cols - BUTTON_COLS - 9)}</text>
             <text heat={0.6}>{fmt(view().latest[view().order[0]], unit()).padStart(8)}</text>
           </Show>
           <Show when={!seg().open}>
@@ -460,49 +473,91 @@ export default function Page() {
           <text size="caption" wrap fill>{seg().script}</text>
         </Show>
 
-        <Show when={view()?.bars}>
-          <Index each={bars(view().bars, width(), unit())}>{(l) => <text>{l()}</text>}</Index>
-        </Show>
-
-        <Show when={view() && !view().bars && view().order.length > 0}>
-          <Show
-            when={kind() === "split"}
-            fallback={
-              <column gap={0}>
-                <Show when={!single()}>
-                  <text size="caption">{legend()}</text>
-                </Show>
-                <Index each={chart(view().order.map(windowOf), width(), band().lo, band().hi, rows(), kind())}>
-                  {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
-                </Index>
-              </column>
-            }
-          >
-            <Index each={view().order}>
-              {(name) => (
-                <column gap={0}>
-                  <Show when={!single()}>
-                    <text size="caption">{line(name(), fmt(view().latest[name()], unit()), width())}</text>
-                  </Show>
-                  <Index each={braille(windowOf(name()), width(), band().lo, band().hi, rows())}>
-                    {(l, r) => <text heat={rowHeat(r, rows())}>{l()}</text>}
-                  </Index>
-                </column>
-              )}
-            </Index>
-          </Show>
-          <text size="caption">{footer()}</text>
+        <Show when={drew()}>
+          <chart
+            kind={kind()}
+            data={payload()}
+            min={attr("min")}
+            max={attr("max")}
+            unit={attr("unit")}
+            chartWidth={CARD_W}
+            chartHeight={height()}
+          />
         </Show>
 
         <Show when={view()?.error}>
           <text size="caption" tone="urgent" wrap fill>{view().error}</text>
         </Show>
-        <Show when={view() && !view().samples && !view().error && !seg().open}>
-          <text size="caption">waiting for data…</text>
+        <Show when={view() && !drew() && !view().error && !seg().open}>
+          <text size="caption" tone="accent">{`${spin()} waiting for data…`}</text>
         </Show>
       </column>
     );
   };
+
+  /* One card: the question, the prose, its charts. Pinned to the card
+   * width by a spacer, so a card still thinking is as wide as one that
+   * has drawn and the grid holds. */
+  const Card = (props) => {
+    const card = () => props.card();
+    return (
+      <column gap={2}>
+        <spacer width={CARD_W} height={1} />
+        <row gap={4}>
+          <text bold>{clip(`;; ${card().question}`, props.cols - BUTTON_COLS)}</text>
+          <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this chart" onClick={() => remove(card().id)}>
+            ×
+          </button>
+        </row>
+
+        <Index each={parse(card().text)}>
+          {(seg) => (
+            <Show
+              when={isChart(seg())}
+              fallback={
+                <text size="bodySmall" wrap fill>
+                  {seg().kind === "text" ? seg().text : seg().script}
+                </text>
+              }
+            >
+              <Chart seg={seg} cardId={card().id} cols={props.cols} />
+            </Show>
+          )}
+        </Index>
+
+        <Show when={!card().done && !card().text}>
+          <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
+        </Show>
+        <Show when={card().error}>
+          <text size="caption" tone="urgent" wrap fill>{card().error}</text>
+        </Show>
+        <Show when={card().cancelled}>
+          <text size="caption">— cancelled —</text>
+        </Show>
+      </column>
+    );
+  };
+
+  /* The grid: as many columns as the layout says, else the square root
+   * of the card count — 1, then 2 from the second card, 3 from the
+   * fifth, 4 from the tenth. The panel widens to hold them. */
+  const columns = () => {
+    const n = cards().length;
+    if (!n) return 1;
+    const wanted = layout() || Math.ceil(Math.sqrt(n));
+    return Math.max(1, Math.min(MAX_COLUMNS, wanted, n));
+  };
+  const grid = () => {
+    const rows = [];
+    const all = cards();
+    const per = columns();
+    for (let i = 0; i < all.length; i += per) rows.push(all.slice(i, i + per));
+    return rows;
+  };
+  const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
+  /* The character grid one card gets: the panel's columns shared out. */
+  const cardCols = () => Math.max(20, Math.floor((cols() - (columns() - 1) * 2) / columns()));
+  const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
 
   return (
     <>
@@ -511,7 +566,7 @@ export default function Page() {
       </bar>
 
       <panel
-        contentWidth={420}
+        contentWidth={panelWidth()}
         gap={6}
         onCols={(e) => setCols(e.cols)}
         onOpen={() => {
@@ -546,7 +601,8 @@ export default function Page() {
           />
 
           {/* The model is a pull-down: the button names the current one and
-              opens a column of the rest under it; picking one closes it. */}
+              opens a column of the rest under it; picking one closes it.
+              The layout button cycles auto, 1, 2, 3, 4 columns. */}
           <row gap={4}>
             <button
               horizontalPadding={4}
@@ -556,6 +612,16 @@ export default function Page() {
             >
               {`${model()} ${picking() ? "▴" : "▾"}`}
             </button>
+            <Show when={cards().length > 1}>
+              <button
+                horizontalPadding={4}
+                verticalPadding={0}
+                tooltipText="Columns of charts: automatic, or one to four"
+                onClick={() => setLayout((n) => (n + 1) % (MAX_COLUMNS + 1))}
+              >
+                {`⊞ ${layoutLabel()}`}
+              </button>
+            </Show>
             <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
             <Show when={busy()}>
               <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
@@ -584,7 +650,7 @@ export default function Page() {
           </Show>
         </Show>
 
-        {/* The zero state: every example as a bubble, a click asks it. */}
+        {/* The zero state: three of the examples as bubbles, a click asks. */}
         <Show when={!cards().length && !loggedOut()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
@@ -610,49 +676,21 @@ export default function Page() {
         </Show>
 
         <Show when={cards().length > 0}>
-            <scroll maxHeight={640} gap={6}>
+          <scroll maxHeight={720} gap={6}>
             {/* <Index> keys by position and hands down an accessor, so a
                 streamed delta patches the one card that changed. */}
-            <Index each={cards()}>
-              {(card, i) => (
-                <column gap={2}>
-                  <Show when={i > 0}>
+            <Index each={grid()}>
+              {(row, r) => (
+                <column gap={4}>
+                  <Show when={r > 0}>
                     <separator />
-                </Show>
-                <row gap={4}>
-                  <text bold>{clip(`;; ${card().question}`, cols() - BUTTON_COLS)}</text>
-                  <button horizontalPadding={4} verticalPadding={0} tooltipText="Remove this chart" onClick={() => remove(card().id)}>
-                    ×
-                  </button>
-                </row>
-
-                <Index each={parse(card().text)}>
-                  {(seg) => (
-                    <Show
-                      when={isChart(seg())}
-                      fallback={
-                        <text size="bodySmall" wrap fill>
-                          {seg().kind === "text" ? seg().text : seg().script}
-                        </text>
-                      }
-                    >
-                      <Chart seg={seg} cardId={card().id} />
-                    </Show>
-                  )}
-                </Index>
-
-                <Show when={!card().done && !card().text}>
-                  <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
-                </Show>
-                <Show when={card().error}>
-                  <text size="caption" tone="urgent" wrap fill>{card().error}</text>
-                </Show>
-                <Show when={card().cancelled}>
-                  <text size="caption">— cancelled —</text>
-                </Show>
-              </column>
-            )}
-          </Index>
+                  </Show>
+                  <row gap={CARD_GAP}>
+                    <Index each={row()}>{(card) => <Card card={card} cols={cardCols()} />}</Index>
+                  </row>
+                </column>
+              )}
+            </Index>
           </scroll>
         </Show>
       </panel>

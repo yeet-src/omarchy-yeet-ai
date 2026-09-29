@@ -32,8 +32,9 @@ subscribe(\`subscription { kernel_stats(interval_ms: 1000) { total {
 ::
 
 The header is \`:::chart[label]{attributes}\`; the body is one fenced \`\`\`js
-block; the closing line is \`::\`. The label is short — it is a column heading
-in a panel about 48 characters wide.
+block; the closing line is \`::\`. The label is short — it is a heading over
+a chart about 400 pixels wide. Charts are drawn, in colour: keep series
+names short, since they go in a legend.
 
 Attributes (all optional):
   - \`unit=\` — how values are formatted: \`%\`, \`B\` for bytes, \`B/s\` for bytes per
@@ -41,17 +42,27 @@ Attributes (all optional):
   - \`min=\` / \`max=\` — a fixed axis. Give both for a percentage; otherwise the
     axis frames the window's own min–max, which is what makes a flat memory
     series legible.
-  - \`kind=\` — how the series are drawn:
-      * \`area\` — filled from the baseline (the default for one series);
-      * \`line\` — a traced line, better for a reading that hovers in a band;
-      * \`stacked\` — several series as bands of a whole, each on top of the
-        last, e.g. cpu user/system/iowait, or memory used/cached/free;
-      * \`overlay\` — several series as lines on one axis, for a comparison,
-        e.g. rx against tx;
-      * \`split\` — one small graph per series (the default for several).
-    A ranking (\`plot\` of an array) is always horizontal bars.
-  - \`rows=\` — braille rows per graph, 1–8, default 4. Use 2 for a \`split\`
-    of several series so the panel stays short.
+  - \`kind=\` — how the data is drawn. Pick the one that fits the question;
+    variety is welcome.
+    Over time (\`plot\` of a number or an object of numbers):
+      * \`area\` — one series, filled (the default for one);
+      * \`line\` — one series, traced;
+      * \`overlay\` — several series as lines on one axis, for a comparison
+        such as rx against tx (the default for several);
+      * \`stacked\` — several series as bands of a whole, e.g. cpu
+        user/system/iowait, memory used/cached/free;
+      * \`split\` — a strip per series, each on its own axis, for readings
+        of different magnitudes such as processes against threads;
+      * \`heat\` — a row per series, cells shaded by value, e.g. every cpu
+        core over time, or every interface;
+      * \`gauge\` — the latest value as an arc, for one reading that has a
+        ceiling: swap in use, a disk, a temperature, load against cores.
+    Of parts (\`plot\` of an array of \`{ label, value }\`):
+      * \`bars\` — a ranking, largest first (the default);
+      * \`pie\` — a donut of the parts of a whole, e.g. memory by kind,
+        connections by state, memory by the top few processes.
+    Of points (\`plot\` of an array of \`{ x, y, label? }\`):
+      * \`scatter\` — e.g. every process as memory against cpu.
   - \`live=\` — milliseconds. Only for a body that RETURNS a value instead of
     subscribing: the body then re-runs on that interval.
   - \`id=\` — a stable identity, so a re-written block keeps its history.
@@ -66,8 +77,10 @@ What a body has in scope:
       * a number → one time series;
       * an object of numbers, e.g. \`plot({ rx, tx })\` → several series,
         stacked, on one axis;
-      * an array of \`{ label, value }\` → a ranking drawn as horizontal bars,
-        replaced on every call, e.g. the top eight processes by memory.
+      * an array of \`{ label, value }\` → parts: a ranking as bars, or a
+        pie, replaced on every call, e.g. the top eight processes by memory;
+      * an array of \`{ x, y }\` → points for a scatter, replaced on every
+        call.
     Call it from the subscription callback, once per sample.
   - \`rate(key, counter)\` — per-second change of a cumulative counter such as
     \`recv_bytes\` or \`sum_exec_runtime\`, keyed so several counters can be

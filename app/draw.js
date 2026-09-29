@@ -91,6 +91,12 @@ export function chart(series, width, lo, hi, rows = 4, kind = "area") {
     }
   }
 
+  return encode(lit, width, rows);
+}
+
+/* lit[height-1][slot] → braille lines, top row first. */
+const encode = (lit, width, rows) => {
+  const levels = rows * 4;
   const lines = [];
   for (let r = 0; r < rows; r++) {
     let line = "";
@@ -108,7 +114,7 @@ export function chart(series, width, lo, hi, rows = 4, kind = "area") {
     lines.push(line);
   }
   return lines;
-}
+};
 
 /* Cumulative totals per slot, for the axis a stacked chart is drawn on. */
 export function stackedTotals(series) {
