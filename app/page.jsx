@@ -109,8 +109,12 @@ const DASHBOARDS = [
   "show me everything about the cpu",
   "give me a dashboard of the top processes",
   "show me a dashboard of the load on this host",
+  "give me a dashboard of sockets and connections",
+  "show me an overview of memory pressure",
+  "give me a dashboard of what is busy right now",
 ];
-const SHOWN = 2; /* single-chart bubbles on show at once, plus one dashboard */
+const SHOWN = 1; /* single-chart bubbles on show at once… */
+const DASH_SHOWN = 2; /* …beside this many dashboards: most suggestions are dashboards */
 const ROTATE_MS = 10000; /* …and how often they move on */
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
@@ -187,10 +191,13 @@ export default function Page() {
   const [example, setExample] = createSignal(0);
   /* The three from the current one on: the next three each time the
    * panel opens, and every ten seconds while the zero state shows. */
-  const shown = () => [
-    ...Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]),
-    dashboards[Math.floor(example() / SHOWN) % dashboards.length],
-  ];
+  const shown = () => {
+    const d = Math.floor(example() / SHOWN) * DASH_SHOWN;
+    return [
+      ...Array.from({ length: DASH_SHOWN }, (_, i) => dashboards[(d + i) % dashboards.length]),
+      ...Array.from({ length: SHOWN }, (_, i) => examples[(example() + i) % examples.length]),
+    ];
+  };
   const [picking, setPicking] = createSignal(false);
   /* The graph's schema, introspected once and carried in every prompt.
    * Until it is in, the status line says so and a question waits. */
@@ -693,11 +700,11 @@ export default function Page() {
 
         <Show when={!loggedOut()}>
           <input
-            placeholder={examples[example()]}
+            placeholder={shown()[0]}
             value={draft()}
             onInput={(e) => setDraft(e.value)}
             onSubmit={(e) => {
-              setDraft(e.value.trim() || examples[example()]);
+              setDraft(e.value.trim() || shown()[0]);
               submit().catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`));
             }}
           />
