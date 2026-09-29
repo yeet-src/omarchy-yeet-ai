@@ -23,6 +23,21 @@ Flickable {
   clip: true
   boundsBehavior: Flickable.StopAtBounds
 
+  /* The wheel stays with this scroll while it has anywhere to go: a
+   * Flickable hands the wheel on to its parent once it reaches an end,
+   * which for a short box under a trackpad happens almost at once and
+   * reads as the whole panel jumping. Nested scrolls stop that here. */
+  WheelHandler {
+    enabled: root.contentHeight > root.height + 1
+    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+    target: null
+    onWheel: function (event) {
+      var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y : (event.angleDelta.y / 120) * 40
+      root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, root.contentY - dy))
+      event.accepted = true
+    }
+  }
+
   Column {
     id: inner
     width: root.width
