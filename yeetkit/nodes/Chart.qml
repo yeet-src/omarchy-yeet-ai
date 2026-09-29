@@ -244,12 +244,15 @@ Item {
     /* The caption row: figures and legend live above the plot, never on it. */
     readonly property real captionRow: captionPx + 6
 
-    /* x for sample i of n, sliding: the newest sample starts a step to
-     * the right of the edge and eases in. */
+    /* x for sample i of n. The step is fixed — the window is 120 samples
+     * wide whatever has arrived — and the newest sample sits at the right
+     * edge, so a young chart streams in from the right rather than
+     * stretching what it has across the width. A new sample starts a
+     * step to the right of the edge and eases in. */
+    readonly property int windowSamples: 120
     function xOf(i, n, x, w) {
-      if (n <= 1) return x + w
-      var step = w / Math.max(1, Math.min(n - 1, 119))
-      return x + w - (n - 1 - i) * step + (root.first ? 0 : (1 - root.t) * step)
+      var step = w / (windowSamples - 1)
+      return x + w - (n - 1 - i) * step + (root.first || n <= 1 ? 0 : (1 - root.t) * step)
     }
     function yOf(v, band, y, h) {
       var r = (v - band.lo) / ((band.hi - band.lo) || 1)
@@ -851,7 +854,7 @@ Item {
      * the series length. */
     function indexAt(mx, x, w, n) {
       if (n <= 1) return n - 1
-      var step = w / Math.max(1, Math.min(n - 1, 119))
+      var step = w / (windowSamples - 1)
       var i = Math.round(n - 1 - (x + w - mx) / step)
       return Math.max(0, Math.min(n - 1, i))
     }
