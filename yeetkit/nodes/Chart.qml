@@ -221,9 +221,11 @@ Item {
         var yy = Math.round(y + h * i / 4) + 0.5
         ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke()
       }
-      text(ctx, root.fmt(band.hi), x + 2, y + captionPx * 0.7, root.alpha(Color.popups.text, 0.85))
+      text(ctx, root.fmt(band.hi), x + 2, y - captionPx * 0.6 - 2, root.alpha(Color.popups.text, 0.85))
       text(ctx, root.fmt(band.lo), x + 2, y + h - captionPx * 0.7, root.alpha(Color.popups.text, 0.85))
     }
+    /* The caption row: figures and legend live above the plot, never on it. */
+    readonly property real captionRow: captionPx + 6
 
     /* x for sample i of n, sliding: the newest sample starts a step to
      * the right of the edge and eases in. */
@@ -288,7 +290,7 @@ Item {
 
     function paintTime(ctx) {
       var names = root.names()
-      var x = pad, y = pad, w = width - pad * 2, h = height - pad * 2
+      var x = pad, y = pad + captionRow, w = width - pad * 2, h = height - pad * 2 - captionRow
       var stacked = root.kind === "stacked"
       var all = []
       var lists = names.map(function (name) { return root.series(name) })
@@ -357,7 +359,7 @@ Item {
       if (names.length > 1 || stacked) {
         legend(ctx, names.map(function (name, si) {
           return { name: name, text: name + " " + root.fmt(root.last(root.series(name))), color: root.tone(si) }
-        }), x, y + captionPx * 0.7, w - 2)
+        }), x, y - captionPx * 0.6 - 2, w - 2)
       }
     }
 
@@ -369,7 +371,8 @@ Item {
       var strip = (height - pad * 2) / names.length
       names.forEach(function (name, si) {
         var l = root.series(name)
-        var y = pad + strip * si + 2, h = strip - 4
+        var top = pad + strip * si
+        var y = top + captionRow, h = strip - captionRow - 2
         var band = root.axis(l)
         var color = root.tone(si)
         ctx.save()
@@ -385,15 +388,15 @@ Item {
         ctx.strokeStyle = root.css(color); ctx.stroke()
         head(ctx, l, band, x, y, w, h, color)
         ctx.restore()
-        text(ctx, name, x + 2, y + captionPx * 0.7, Color.popups.text)
-        text(ctx, root.fmt(root.last(l)), x + w - 2, y + captionPx * 0.7, color, "right")
+        text(ctx, name, x + 2, top + captionPx * 0.7, Color.popups.text)
+        text(ctx, root.fmt(root.last(l)), x + w - 2, top + captionPx * 0.7, color, "right")
       })
       var hv = root.hover
       if (hv) {
         var si = Math.floor((hv.y - pad) / strip)
         if (si >= 0 && si < names.length) {
           var sl = root.series(names[si])
-          hoverTime(ctx, [names[si]], [sl], root.axis(sl), x, pad + strip * si + 2, w, strip - 4, false)
+          hoverTime(ctx, [names[si]], [sl], root.axis(sl), x, pad + strip * si + captionRow, w, strip - captionRow - 2, false)
         }
       }
     }
@@ -693,7 +696,7 @@ Item {
     /* Points on two axes, framed to the data unless fixed. */
     function paintScatter(ctx) {
       var pts = root.shown.points
-      var x = pad + 2, y = pad, w = width - pad * 2 - 2, h = height - pad * 2
+      var x = pad + 2, y = pad + captionRow, w = width - pad * 2 - 2, h = height - pad * 2 - captionRow
       var xs = pts.map(function (p) { return p.x }), ys = pts.map(function (p) { return p.y })
       var bx = root.axis(xs.filter(isFinite)), by = root.axis(ys.filter(isFinite))
       var landed = []
