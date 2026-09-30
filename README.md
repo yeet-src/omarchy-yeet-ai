@@ -94,6 +94,25 @@ block's JavaScript out, and executes it in the yeet engine's V8
 isolate on the host, where [`yeet.graph.subscribe`](https://yeet.cx/docs/scripts/yeet-global?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai#yeet-graph-subscribe)
 is in scope:
 
+```
+  Omarchy bar                       yeet isolate (V8, on the host)
+  ┌───────────────────────┐          ┌───────────────────────────────────┐
+  │ "how busy is the cpu?"│ ───────▶ │ agent ── prompt + schema ──▶ model│
+  │                       │          │            ▲            │         │
+  │  ┌──────┐ ┌────────┐  │          │   tools    │     markdown reply    │
+  │  │ heat │ │ gauge  │  │          │  graph_schema        streams in   │
+  │  └──────┘ └────────┘  │          │  graph_query           │          │
+  │  ┌──────┐ ┌────────┐  │  patches │                        ▼          │
+  │  │ bars │ │ stacked│  │ ◀─────── │ remark ── :::chart ── js body     │
+  │  └──────┘ └────────┘  │          │                        │          │
+  └───────────────────────┘          │             subscribe(gql, plot)  │
+                                     │                        │          │
+                                     └────────────────────────┼──────────┘
+                                                              ▼
+                                                   system graph (yeetd)
+                                          procs · cpu · memory · network · …
+```
+
 ````markdown
 CPU as a share of every core, one sample a second.
 
