@@ -252,8 +252,8 @@ Item {
         var yy = Math.round(y + h * i / 4) + 0.5
         ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke()
       }
-      text(ctx, root.fmt(band.hi), x + 2, y - captionPx * 0.6 - 2, root.alpha(Color.popups.text, 0.85))
-      text(ctx, root.fmt(band.lo), x + 2, y + h - captionPx * 0.7, root.alpha(Color.popups.text, 0.85))
+      text(ctx, root.fmt(band.hi), x + 2, y - captionPx * 0.6 - 2, Color.popups.text)
+      text(ctx, root.fmt(band.lo), x + 2, y + h - captionPx * 0.7, Color.popups.text)
     }
     /* The caption row: figures and legend live above the plot, never on it. */
     readonly property real captionRow: captionPx + 6
@@ -915,8 +915,8 @@ Item {
       var bx = root.axis(xs.filter(isFinite)), by = root.axis(ys.filter(isFinite))
       var landed = []
       frame(ctx, x, y, w, h, by)
-      text(ctx, root.fmt(bx.lo), x + 2, y + h - captionPx * 0.7 - 12, root.alpha(Color.popups.text, 0.6))
-      text(ctx, root.fmt(bx.hi), x + w - 2, y + h - captionPx * 0.7, root.alpha(Color.popups.text, 0.85), "right")
+      text(ctx, root.fmt(bx.lo), x + 2, y + h - captionPx * 0.7 - 12, Color.popups.text)
+      text(ctx, root.fmt(bx.hi), x + w - 2, y + h - captionPx * 0.7, Color.popups.text, "right")
       pts.forEach(function (p) {
         if (!isFinite(p.x) || !isFinite(p.y)) return
         var px = x + Math.max(0, Math.min(1, (p.x - bx.lo) / ((bx.hi - bx.lo) || 1))) * w
