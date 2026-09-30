@@ -732,12 +732,19 @@ export default function Page() {
           {/* Top right, on a line of their own: the referral toggle and the
               settings link. A row cannot right-align on its own, so a text
               filling the row pushes them over. */}
-          <row gap={0}>
-            <spacer width={Math.max(0, (panelW() || PANEL_MIN_W) - charPx() * 26 - 8)} height={1} />
-            <link onClick={() => setReferring(!referring())}>{referring() ? "Back" : "Refer a friend"}</link>
-            <text>{"   "}</text>
-            <link href="https://yeet.cx/settings">Settings</link>
-          </row>
+          <link
+            fill
+            align="right"
+            links={JSON.stringify([
+              { label: referring() ? "Back" : "Refer a friend", href: "action:refer" },
+              { label: "Settings", href: "https://yeet.cx/settings" },
+            ])}
+            onClick={(e) => {
+              if (e.href === "action:refer") setReferring(!referring());
+            }}
+          >
+            {" "}
+          </link>
         </Show>
 
         <Show when={!loggedOut() && referring()}>
