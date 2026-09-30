@@ -1,9 +1,7 @@
 # yeet-ai
 
-![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
-
 Ask for a chart of this host and get one, live, in the
-[Omarchy](https://omarchy.org) bar. Click the colander; a panel drops
+[Omarchy](https://omarchy.org) bar. Click the yeet icon; a panel drops
 down with one input and three suggestions. Ask — *show me the whole
 system in six charts*, *how busy is each cpu core?*, *which processes
 use the most memory?* — and the model does not describe the reading. It
@@ -11,6 +9,8 @@ writes the instrument that takes it: a subscription over the system
 graph, running in a yeet isolate on the machine, and says in one
 sentence which chart it chose and why. The charts are drawn in your
 theme's colours, in a grid that grows with every question.
+
+![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
 
 <p align="center">
   <img src="assets/dashboard-dark.png" width="49%" alt="a host dashboard on a dark theme">
