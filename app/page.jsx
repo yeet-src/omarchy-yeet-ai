@@ -41,7 +41,8 @@ const DEFAULT_MODEL = MODELS[0];
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const BAR_W = 4; /* braille cells for the bar item's sparkline: 8 samples */
 const WINDOW = 120; /* samples a chart is handed */
-const CARD_W = 400; /* px, one card's chart */
+const CARD_W = 400; /* px, one tile at two or more columns */
+const PANEL_MIN_W = 540; /* px: the status row and a question fit in one column */
 const CARD_GAP = 12;
 const CHART_H = 180;
 const MAX_COLUMNS = 4;
@@ -678,7 +679,7 @@ export default function Page() {
     for (let i = 0; i < all.length; i += per) rows.push(all.slice(i, i + per));
     return rows;
   };
-  const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
+  const panelWidth = () => Math.max(PANEL_MIN_W, columns() * CARD_W + (columns() - 1) * CARD_GAP);
   /* One character's width in pixels, from what the panel measured. */
   const charPx = () => (panelW() > 0 && cols() > 0 ? panelW() / cols() : 8);
   /* From the narrower of what the shell measured and what is being asked
