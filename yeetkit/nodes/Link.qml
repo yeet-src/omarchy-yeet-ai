@@ -38,7 +38,9 @@ Text {
    * any binding — so the label is kept aside and the anchor written
    * back over it. */
   property string label: ""
-  function one(label, href) { return "<a href=\"" + (href === "" ? "#" : href) + "\">" + label + "</a>" }
+  /* Each anchor carries its own underline, so the space between two of
+   * them stays bare. */
+  function one(label, href) { return "<a href=\"" + (href === "" ? "#" : href) + "\"><u>" + label + "</u></a>" }
   function anchor() {
     if (root.links !== "") {
       var list = []
@@ -58,7 +60,6 @@ Text {
   linkColor: Color.accent
   font.family: Style.font.family
   font.pixelSize: Style.font[size] || Style.font.bodySmall
-  font.underline: true
   renderType: Text.NativeRendering
   /* With no href the link is an action: the click goes up and nothing
    * opens, so a page can draw a control as a link. */
