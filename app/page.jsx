@@ -798,6 +798,10 @@ export default function Page() {
             </Index>
           </scroll>
         </Show>
+
+        <row gap={4}>
+          <link href="https://yeet.cx/settings">Settings</link>
+        </row>
       </panel>
     </>
   );
