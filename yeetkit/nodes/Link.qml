@@ -22,11 +22,17 @@ Text {
   property Process opener: Process {}
 
   textFormat: Text.StyledText
-  text: "<a href=\"" + href + "\">" + label + "</a>"
-  /* The client sets `text` from the child string; it is kept here and
-   * the anchor rebuilt around it. */
+  /* The client assigns `text` from the child string, which replaces
+   * any binding — so the label is kept aside and the anchor written
+   * back over it. */
   property string label: ""
-  onTextChanged: if (!text.startsWith("<a ")) { label = text }
+  function anchor() { return "<a href=\"" + root.href + "\">" + root.label + "</a>" }
+  onTextChanged: {
+    if (root.text.indexOf("<a ") === 0) return
+    root.label = root.text
+    root.text = anchor()
+  }
+  onHrefChanged: root.text = anchor()
   color: Color.accent
   linkColor: Color.accent
   font.family: Style.font.family
