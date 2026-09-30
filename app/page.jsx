@@ -139,12 +139,11 @@ const SHOWN = 1; /* single-chart bubbles on show at once… */
 const DASH_SHOWN = 2; /* …beside this many dashboards: most suggestions are dashboards */
 const ROTATE_MS = 10000; /* …and how often they move on */
 
-/* Held apart from the JSX: a string literal placed as a child is
- * pre-escaped by the compiler, and the <b> tags would arrive as text. */
+/* The prose node's markup: **bold**, and a blank line between paragraphs. */
 const REFERRAL =
-  "From the email address paired with your yeet account, send an email to <b>contact@yeet.cx</b> "
-  + "with your friend's email address and <b>Omarchy</b> in the subject line.\n\n"
-  + "When they sign up, we'll give you <b>$20</b> in free AI credits.";
+  "From the email address paired with your yeet account, send an email to **contact@yeet.cx** "
+  + "with your friend's email address and **Omarchy** in the subject line.\n\n"
+  + "When they sign up, we'll give you **$20** in free AI credits.";
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
 

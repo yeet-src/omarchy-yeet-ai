@@ -2,9 +2,10 @@ import QtQuick
 import qs.Commons
 
 // <prose size>  a paragraph the reader can select and copy, with a
-// little markup: the child string may carry <b>, <i> and <u>, and a
-// newline is a line break. Nothing else is honoured: the string is
-// escaped first, so a stray angle bracket stays text.
+// little markup: **bold**, *italic* and __underline__, and a newline is
+// a line break. Angle brackets are escaped, so nothing in the string
+// becomes markup of its own — and the compiler escapes them in a page's
+// string literals anyway, which is why the markup is not tags.
 //
 // An Item around the TextEdit: the client sets `text` from the child
 // string, and a rich-text edit would fold the string's newlines while
@@ -28,7 +29,9 @@ Item {
 
   function rich(raw) {
     var safe = String(raw).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    safe = safe.replace(/&lt;(\/?)(b|i|u)&gt;/g, "<$1$2>")
+    safe = safe.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    safe = safe.replace(/__(.+?)__/g, "<u>$1</u>")
+    safe = safe.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<i>$2</i>")
     return safe.replace(/\r?\n/g, "<br>")
   }
 
