@@ -46,17 +46,21 @@ last bar widget goes away, so a shell restart clears the panel.
 
 ## Install
 
-Add the plugin first. Until yeet is installed and its daemon running, the
-bar item shows what is missing and how to fix it:
+Install yeet and log this host in, then add the plugin:
 
 ```sh
+curl -fsSL https://yeet.cx | sh
+yeet login
 omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
 ```
 
-Then run the pinned installer from the plugin checkout and log in. The
-installer fetches a fixed yeet release for your architecture, checks the
-package's sha256 and signature against values written in the script,
-installs it and starts the daemon:
+The plugin can go first as well: until yeet is installed and its daemon
+running, the bar item shows what is missing and how to fix it.
+
+To install yeet without piping to a shell, the plugin checkout carries a
+pinned installer. It fetches a fixed yeet release for your architecture,
+checks the package's sha256 and signature against values written in the
+script, installs it and starts the daemon:
 
 ```sh
 sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
