@@ -40,7 +40,7 @@ TextEdit {
     var safe = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     safe = safe.replace(/&lt;(\/?)(b|i|u)&gt;/g, "<$1$2>")
     /* Rich text folds newlines; a line break in the string is a <br>. */
-    safe = safe.replace(/\n/g, "<br>")
+    safe = safe.replace(/[\n\u2028\u2029]/g, "<br>")
     root.text = safe
     rewriting = false
   }
