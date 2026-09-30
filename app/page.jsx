@@ -46,8 +46,10 @@ const PANEL_MIN_W = 540; /* px: the status row and a question fit in one column 
 const CARD_GAP = 12;
 const CHART_H = 180;
 const MAX_COLUMNS = 4;
-/* The Settings link at the top right. */
+/* The Settings link at the top right, and where the credits page sends
+ * someone whose balance has run out. */
 const SHOW_LINKS = true;
+const SETTINGS_URL = "https://yeet.cx/settings?utm_source=omarchy&utm_medium=plugin&utm_campaign=omarchy-yeet-ai";
 const CLOSE_W = 32; /* px the × button takes beside a heading */
 const CODE_H = 180; /* px of source shown before it scrolls */
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
@@ -190,6 +192,11 @@ const authError = (e) =>
   /WHOAMI_NOT_SET|WhoAmI is not set|access token|not logged in|logged out|unauthori[sz]ed|forbidden/i.test(
     `${e?.code ?? ""} ${e?.message ?? e ?? ""}`,
   );
+/* What the platform says when the account's AI credits are spent: the
+ * call is refused before anything is generated. Charts keep running;
+ * asking waits on a top-up in Settings. */
+const creditsError = (e) =>
+  /AI_INSUFFICIENT_CREDITS|insufficient credits|more credits than the balance/i.test(`${e?.code ?? ""} ${e?.message ?? e ?? ""}`);
 const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const isChart = (seg) => seg.kind === "block" && seg.name === "chart";
@@ -231,6 +238,9 @@ export default function Page() {
    * done. Found out up front through a platform call, and again if an
    * ask comes back rejected. */
   const [loggedOut, setLoggedOut] = createSignal(false);
+  /* Out of credits, the panel shows the way to Settings in place of the
+   * input, until "ask again" is pressed after a top-up. */
+  const [outOfCredits, setOutOfCredits] = createSignal(false);
   const [tick, setTick] = createSignal(0);
   /* Bumped when a cell is added or released, so a lookup in the map
    * below re-runs. The map itself is plain: it is mutated in place. */
@@ -411,6 +421,7 @@ export default function Page() {
     });
     setBusy(false);
     setStatus("");
+    if (outcome.error && creditsError(outcome.error)) setOutOfCredits(true);
 
     const fixed = parse(outcome.text).find((s) => isChart(s) && !s.open);
     const latest = cards().find((c) => c.id === id);
@@ -461,6 +472,7 @@ export default function Page() {
       setBusy(false);
       setStatus("");
       if (outcome.error && authError(outcome.error)) setLoggedOut(true);
+      if (outcome.error && creditsError(outcome.error)) setOutOfCredits(true);
       if (!outcome.error && !outcome.cancelled) doctor(id).catch((error) => console.warn(`askai: repair failed: ${error?.message ?? error}`));
     } catch (error) {
       patch(id, (c) => ({ ...c, done: true, error: String(error?.message ?? error) }));
@@ -745,7 +757,7 @@ export default function Page() {
               fill
               align="right"
               links={JSON.stringify([
-                { label: "Settings", href: "https://yeet.cx/settings?utm_source=omarchy&utm_medium=plugin&utm_campaign=omarchy-yeet-ai" },
+                { label: "Settings", href: SETTINGS_URL },
               ])}
             >
               {" "}
@@ -753,7 +765,21 @@ export default function Page() {
           </Show>
         </Show>
 
-        <Show when={!loggedOut()}>
+        <Show when={!loggedOut() && outOfCredits()}>
+          <column gap={4} fill>
+            <text bold>Out of AI credits</text>
+            <text size="bodySmall" wrap fill>
+              The yeet account this host is logged in to has no AI credits left, so the question was not asked.
+              Charts already drawn keep running. Add credits in Settings, then ask again.
+            </text>
+            <row gap={8}>
+              <link href={SETTINGS_URL}>Open Settings</link>
+              <button onClick={() => setOutOfCredits(false)}>ask again</button>
+            </row>
+          </column>
+        </Show>
+
+        <Show when={!loggedOut() && !outOfCredits()}>
           <input
             placeholder={shown()[0]}
             value={draft()}
@@ -816,7 +842,7 @@ export default function Page() {
         </Show>
 
         {/* The zero state: three of the examples as bubbles, a click asks. */}
-        <Show when={!cards().length && !loggedOut()}>
+        <Show when={!cards().length && !loggedOut() && !outOfCredits()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
             <Index each={pack(shown(), panelW() || CARD_W, charPx())}>
