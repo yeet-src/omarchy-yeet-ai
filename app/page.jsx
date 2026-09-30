@@ -692,7 +692,7 @@ export default function Page() {
 
   return (
     <>
-      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI — ${chartCount()} charts · ${model()}`}>
+      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI · ${chartCount()} charts`}>
         {barText()}
       </bar>
 

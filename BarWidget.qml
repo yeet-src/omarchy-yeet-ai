@@ -76,11 +76,13 @@ BarWidget {
     keepSpace: true
     text: Kit.Isolate.trouble !== "" ? "⚠ yeet"
         : client.phase === "reconnecting" ? "…" : "·"
+    /* Short: the placeholder is a few characters wide at the bar's right
+     * edge, and the shell lets a tooltip run past the screen. */
     tooltipText: Kit.Isolate.trouble === "missing"
-        ? "askai — yeet is not installed; click for instructions"
+        ? "yeet is not installed — click"
         : Kit.Isolate.trouble === "daemon"
-        ? "askai — yeetd is not running; click for instructions"
-        : "askai — waiting for the isolate"
+        ? "yeetd is not running — click"
+        : "starting…"
     pressable: Kit.Isolate.trouble !== ""
     onPressed: root.toggle()
   }
