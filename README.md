@@ -11,7 +11,7 @@
   <a href="https://discord.gg/JxVseaAVAU"><img src="https://img.shields.io/badge/chat-Discord-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
+![yeet-ai asked for an entire live dashboard of the system, drawing six charts one by one](assets/demo.gif)
 
 Click the yeet icon; a panel drops down with one input and three
 suggestions. Ask — *show me the whole system in six charts*, *how busy
