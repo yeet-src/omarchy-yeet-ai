@@ -56,9 +56,23 @@ Item {
   property real t: 1
   property bool first: true
 
+  /* Where each bar was — its value and its row — at the moment a new
+   * payload lands, taken from the drawing in progress rather than the
+   * previous target, so a sample arriving mid-ease continues from where
+   * the bar is instead of snapping back. Keyed by label, so a bar that
+   * changes rank slides to its new row. */
+  property var fromBars: ({})
+
   onPayloadChanged: {
     var next = {}
     try { next = JSON.parse(payload) } catch (e) { next = {} }
+    var from = {}
+    if (shown.bars) {
+      shown.bars.forEach(function (row, i) {
+        from[String(row.label)] = { value: canvas.barValue(row, i), row: canvas.barRow(row, i) }
+      })
+    }
+    fromBars = from
     prev = shown
     shown = next
     tween.restart()
@@ -75,8 +89,8 @@ Item {
     property: "t"
     from: 0
     to: 1
-    duration: 450
-    easing.type: Easing.OutCubic
+    duration: 650
+    easing.type: Easing.InOutCubic
     onStopped: root.first = false
   }
 
@@ -659,13 +673,18 @@ Item {
 
     function barValue(row, i) {
       var v = Number(row.value)
-      var before = null
-      if (root.prev.bars) {
-        var match = root.prev.bars.filter(function (b) { return b.label === row.label })[0]
-        if (match) before = Number(match.value)
-      }
       if (!isFinite(v)) v = 0
-      return before !== null && isFinite(before) ? root.lerp(before, v, root.t) : v * (root.first ? root.t : 1)
+      var from = root.fromBars[String(row.label)]
+      if (from && isFinite(from.value)) return root.lerp(from.value, v, root.t)
+      /* A bar new to the chart grows in from nothing. */
+      return v * root.t
+    }
+
+    /* The row a bar is drawn at, easing from where it was. */
+    function barRow(row, i) {
+      var from = root.fromBars[String(row.label)]
+      if (from && isFinite(from.row)) return root.lerp(from.row, i, root.t)
+      return i
     }
 
     /* Horizontal bars, ranked: the label, a rounded bar scaled to the
@@ -685,7 +704,7 @@ Item {
       var peak = 1e-9
       rows.forEach(function (row) { peak = Math.max(peak, Number(row.value) || 0) })
       rows.forEach(function (row, i) {
-        var y = pad + rowH * i
+        var y = pad + rowH * barRow(row, i)
         var bh = Math.max(3, Math.min(rowH - 4, 24))
         var by = y + (rowH - bh) / 2
         var v = barValue(row, i)
