@@ -492,13 +492,15 @@ export default function Page() {
   };
 
   const barText = () => {
-    const head = busy() ? `yeet:ai ${spin()}` : "yeet:ai";
+    /* The logo carries the name; the label is the spinner and the
+     * newest chart, or nothing. */
+    const head = busy() ? spin() : "";
     const top = newest();
     if (!top) return head;
     const name = top.view.order[0];
     const recent = top.view.series[name].slice(-BAR_W * 2);
     const band = axis(recent, num(top.seg.attrs.min), num(top.seg.attrs.max));
-    return `${head} ${braille(recent, BAR_W, band.lo, band.hi, 1)[0]} ${fmt(top.view.latest[name], top.seg.attrs.unit)}`;
+    return `${head ? `${head} ` : ""}${braille(recent, BAR_W, band.lo, band.hi, 1)[0]} ${fmt(top.view.latest[name], top.seg.attrs.unit)}`;
   };
 
   const chartCount = () => {
@@ -709,7 +711,7 @@ export default function Page() {
 
   return (
     <>
-      <bar heat={busy() ? 0.5 : -1} tooltipText={`Ask AI · ${chartCount()} charts`}>
+      <bar image="assets/fecm.png" heat={busy() ? 0.5 : -1} tooltipText={`Ask AI · ${chartCount()} charts`}>
         {barText()}
       </bar>
 
