@@ -113,26 +113,26 @@ const DASHBOARDS = [
   "show me an overview of memory pressure",
   "give me a dashboard of what is busy right now",
   "give me a dashboard of disk activity",
-  "show me a dashboard of the kernel: interrupts, context switches, run queue",
+  "show me a kernel dashboard",
   "give me a dashboard of each cpu core",
-  "show me a dashboard of network packets and errors",
+  "show me network packets and errors",
   "give me a dashboard of the biggest processes",
-  "show me a dashboard of memory: used, swap, cache, top consumers",
+  "show me a memory dashboard with swap",
   "give me a dashboard of threads and processes",
-  "show me a dashboard of listening ports and connections",
+  "show me ports and connections",
   "give me a dashboard of cpu pressure",
-  "show me a dashboard of the last minute on this host",
-  "give me a dashboard of the desktop: shell, compositor, audio",
-  "show me a dashboard of what changed in the last five minutes",
+  "show me the last minute on this host",
+  "give me a desktop dashboard",
+  "what changed in the last five minutes?",
   "give me a dashboard of the host at a glance",
-  "show me a dashboard of tcp: states, queues, peers",
-  "give me a dashboard of the load: 1, 5 and 15 minutes against the cores",
-  "show me a dashboard of memory by kind over time",
-  "give me a dashboard of the top talkers on the network",
-  "show me a dashboard of process churn: starts, exits, states",
-  "give me a dashboard of the file descriptors in use",
-  "show me a dashboard of the cpu split by mode and by core",
-  "give me a dashboard of the whole system in six charts",
+  "show me a tcp dashboard",
+  "give me a load dashboard",
+  "show me memory by kind over time",
+  "who are the top talkers on the network?",
+  "show me process churn",
+  "give me a file descriptor dashboard",
+  "show me cpu by mode and by core",
+  "show me the whole system in six charts",
 ];
 const SHOWN = 1; /* single-chart bubbles on show at once… */
 const DASH_SHOWN = 2; /* …beside this many dashboards: most suggestions are dashboards */
@@ -588,6 +588,9 @@ export default function Page() {
             ×
           </button>
         </row>
+        <Show when={tile().prose && tile().first}>
+          <text size="caption" wrap width={props.width}>{tile().prose}</text>
+        </Show>
         <row gap={4}>
           <Show when={seg() && !several()}>
             <text>{seg().label || ""}</text>
@@ -644,9 +647,6 @@ export default function Page() {
 
         <Show when={!card().done && !seg()}>
           <text size="caption" tone="accent">{`${spin()} ${status()}`}</text>
-        </Show>
-        <Show when={tile().prose && tile().first}>
-          <text size="caption" wrap width={props.width}>{tile().prose}</text>
         </Show>
         <Show when={card().error}>
           <text size="caption" tone="urgent" wrap width={props.width}>{card().error}</text>
