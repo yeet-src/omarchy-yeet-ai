@@ -1,5 +1,5 @@
-<!-- yeet:user-friendly-title: Ask AI for a live chart of your host -->
-# yeet-ai
+<!-- yeet:user-friendly-title: Ask a question, generate a live realtime dashboard of your system in seconds -->
+# yeet AI: Ask a question, generate a live realtime dashboard of your system in seconds.
 
 > **Ask for a chart of this host and get one, live, in the [Omarchy](https://omarchy.org) bar.** The model does not describe the reading; it writes the instrument that takes it, and the panel draws what arrives.
 
