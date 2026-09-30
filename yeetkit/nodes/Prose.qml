@@ -39,7 +39,9 @@ TextEdit {
     var raw = root.getText(0, root.length)
     var safe = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     safe = safe.replace(/&lt;(\/?)(b|i|u)&gt;/g, "<$1$2>")
-    root.text = "<span style=\"white-space: pre-wrap\">" + safe + "</span>"
+    /* Rich text folds newlines; a line break in the string is a <br>. */
+    safe = safe.replace(/\n/g, "<br>")
+    root.text = safe
     rewriting = false
   }
   /* A panel's key catcher takes keys first; while a selection is being

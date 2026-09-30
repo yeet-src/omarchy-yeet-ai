@@ -236,6 +236,13 @@ export default function Page() {
   const [sources, setSources] = createSignal({});
   /* The referral offer takes over the panel while it is open. */
   const [referring, setReferring] = createSignal(false);
+  /* The width the panel had when the offer opened, held while it is up,
+   * so the page does not reflow as charts come and go behind it. */
+  const [referW, setReferW] = createSignal(0);
+  const refer = (on) => {
+    if (on) setReferW(panelWidth());
+    setReferring(on);
+  };
   /* Columns of cards: 0 is automatic — one, then two, up to four as
    * cards arrive — and 1..4 pins it. */
   const [layout, setLayout] = createSignal(0);
@@ -681,7 +688,8 @@ export default function Page() {
     for (let i = 0; i < all.length; i += per) rows.push(all.slice(i, i + per));
     return rows;
   };
-  const panelWidth = () => Math.max(PANEL_MIN_W, columns() * CARD_W + (columns() - 1) * CARD_GAP);
+  const panelWidth = () =>
+    referring() && referW() > 0 ? referW() : Math.max(PANEL_MIN_W, columns() * CARD_W + (columns() - 1) * CARD_GAP);
   /* One character's width in pixels, from what the panel measured. */
   const charPx = () => (panelW() > 0 && cols() > 0 ? panelW() / cols() : 8);
   /* From the narrower of what the shell measured and what is being asked
@@ -740,7 +748,7 @@ export default function Page() {
               { label: "Settings", href: "https://yeet.cx/settings" },
             ])}
             onClick={(e) => {
-              if (e.href === "action:refer") setReferring(!referring());
+              if (e.href === "action:refer") refer(!referring());
             }}
           >
             {" "}
