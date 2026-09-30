@@ -46,6 +46,9 @@ const PANEL_MIN_W = 540; /* px: the status row and a question fit in one column 
 const CARD_GAP = 12;
 const CHART_H = 180;
 const MAX_COLUMNS = 4;
+/* The Refer a friend and Settings links at the top right. Off for now;
+ * the referral page and the link stay wired for when it is on. */
+const SHOW_LINKS = false;
 const CLOSE_W = 32; /* px the × button takes beside a heading */
 const CODE_H = 180; /* px of source shown before it scrolls */
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
@@ -748,19 +751,21 @@ export default function Page() {
           {/* Top right, on a line of their own: the referral toggle and the
               settings link. A row cannot right-align on its own, so a text
               filling the row pushes them over. */}
-          <link
-            fill
-            align="right"
-            links={JSON.stringify([
-              { label: referring() ? "Back" : "Refer a friend", href: "action:refer" },
-              { label: "Settings", href: "https://yeet.cx/settings" },
-            ])}
-            onClick={(e) => {
-              if (e.href === "action:refer") refer(!referring());
-            }}
-          >
-            {" "}
-          </link>
+          <Show when={SHOW_LINKS}>
+            <link
+              fill
+              align="right"
+              links={JSON.stringify([
+                { label: referring() ? "Back" : "Refer a friend", href: "action:refer" },
+                { label: "Settings", href: "https://yeet.cx/settings" },
+              ])}
+              onClick={(e) => {
+                if (e.href === "action:refer") refer(!referring());
+              }}
+            >
+              {" "}
+            </link>
+          </Show>
         </Show>
 
         <Show when={!loggedOut() && referring()}>
