@@ -757,7 +757,7 @@ export default function Page() {
               align="right"
               links={JSON.stringify([
                 { label: referring() ? "Back" : "Refer a friend", href: "action:refer" },
-                { label: "Settings", href: "https://yeet.cx/settings" },
+                { label: "Settings", href: "https://yeet.cx/settings?utm_source=omarchy&utm_medium=plugin&utm_campaign=omarchy-yeet-ai" },
               ])}
               onClick={(e) => {
                 if (e.href === "action:refer") refer(!referring());

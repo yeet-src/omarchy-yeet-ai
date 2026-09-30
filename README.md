@@ -5,7 +5,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Omarchy-1793D1?logo=archlinux&logoColor=white" alt="Omarchy">
-  <img src="https://img.shields.io/badge/built%20with-yeet-8A2BE2" alt="built with yeet">
+  <a href="https://yeet.cx?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai"><img src="https://img.shields.io/badge/built%20with-yeet-8A2BE2" alt="built with yeet"></a>
   <img src="https://img.shields.io/badge/model-Claude%20%C2%B7%20GPT%20%C2%B7%20Gemini-D97757" alt="Claude, GPT and Gemini">
   <img src="https://img.shields.io/badge/license-Apache--2.0-3DA639" alt="Apache-2.0">
   <a href="https://discord.gg/JxVseaAVAU"><img src="https://img.shields.io/badge/chat-Discord-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -34,7 +34,7 @@ whatever is running, and follows a theme change on the spot:
 
 ## Requirements
 
-- [yeet](https://yeet.cx) — `yeet` on `PATH` with `yeetd` running, and
+- [yeet](https://yeet.cx?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai) — `yeet` on `PATH` with `yeetd` running, and
   `yeet login` completed. Charts need the daemon; asking needs the login,
   since the model is reached through the platform's `yeet:ai`.
 - `script` from util-linux, which every Arch install has
@@ -73,7 +73,7 @@ yeet login
 ```
 
 Other package managers are covered in the
-[manual installation guide](https://yeet.cx/docs/install/manual-installation).
+[manual installation guide](https://yeet.cx/docs/install/manual-installation?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai).
 
 The model is chosen from a pull-down in the panel — `claude-opus-5` by
 default — from the list in `MODELS` at the top of `app/page.jsx`. The
