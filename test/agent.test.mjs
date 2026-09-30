@@ -168,3 +168,80 @@ test("agent: a second ask while busy is refused, per-ask hooks override", async 
   assert.deepEqual(seen, ["override"]);
   assert.equal(agent.busy, false);
 });
+
+/* A stream that fails at setup, the way yeet:ai's does when the daemon
+ * gave up on the platform call: the iterator throws and result rejects. */
+const refused = (error) => ({
+  async *[Symbol.asyncIterator]() {
+    throw error;
+  },
+  result: Promise.reject(error).catch(() => ({})),
+  cancel: async () => {},
+});
+
+test("agent: a turn refused before any event is asked again until it is accepted", async () => {
+  const error = Object.assign(new Error("API request failed: HTTPS Request Timeout Exceeded: 15s."), {
+    code: "PLATFORM_CALL_API_ERROR",
+  });
+  const { stream: fine, requests } = scripted([[{ type: "text", delta: "ok" }]]);
+  let calls = 0;
+  const stream = (request) => (++calls <= 2 ? refused(error) : fine(request));
+  const retries = [];
+  const errors = [];
+  const agent = createAgent({
+    model: "m",
+    system: "S",
+    tools: [],
+    stream,
+    runTool,
+    retryDelay: () => 1,
+    on: { retry: (n, why) => retries.push([n, why]), error: (m) => errors.push(m) },
+  });
+  const outcome = await agent.ask("q");
+  assert.equal(outcome.text, "ok");
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.cancelled, false);
+  const why = "PLATFORM_CALL_API_ERROR: API request failed: HTTPS Request Timeout Exceeded: 15s.";
+  assert.deepEqual(retries, [[1, why], [2, why]]);
+  assert.deepEqual(errors, []);
+  assert.equal(requests.length, 1);
+  assert.equal(calls, 3);
+});
+
+test("agent: stop during the wait between attempts settles as cancelled", async () => {
+  const error = Object.assign(new Error("The server is rate limiting platform calls."), { code: "PLATFORM_CALL_RATE_LIMITED" });
+  const agent = createAgent({
+    model: "m",
+    system: "S",
+    tools: [],
+    stream: () => refused(error),
+    runTool,
+    retryDelay: () => 60_000,
+    on: { retry: () => setTimeout(() => agent.cancel(), 5) },
+  });
+  const outcome = await agent.ask("q");
+  assert.equal(outcome.cancelled, true);
+  assert.equal(outcome.error, null);
+});
+
+test("agent: a login error and a failure after text has arrived are not retried", async () => {
+  const auth = Object.assign(new Error("WhoAmI is not set."), { code: "PLATFORM_CALL_WHOAMI_NOT_SET" });
+  const retries = [];
+  let agent = createAgent({ model: "m", system: "S", tools: [], stream: () => refused(auth), runTool, retryDelay: () => 1, on: { retry: (n) => retries.push(n) } });
+  assert.equal((await agent.ask("q")).error, "PLATFORM_CALL_WHOAMI_NOT_SET: WhoAmI is not set.");
+
+  const late = Object.assign(new Error("gone"), { code: "PLATFORM_CALL_API_ERROR" });
+  const midway = () => ({
+    async *[Symbol.asyncIterator]() {
+      yield { type: "text", delta: "half" };
+      throw late;
+    },
+    result: Promise.reject(late).catch(() => ({})),
+    cancel: async () => {},
+  });
+  agent = createAgent({ model: "m", system: "S", tools: [], stream: midway, runTool, retryDelay: () => 1, on: { retry: (n) => retries.push(n) } });
+  const outcome = await agent.ask("q");
+  assert.equal(outcome.error, "PLATFORM_CALL_API_ERROR: gone");
+  assert.equal(outcome.text, "half");
+  assert.deepEqual(retries, []);
+});

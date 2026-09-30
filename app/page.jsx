@@ -255,7 +255,12 @@ export default function Page() {
     tools,
     stream,
     runTool,
-    on: { usage: setUsage },
+    on: {
+      usage: setUsage,
+      /* The daemon gave up on the platform call; the agent is asking the
+       * turn again. Said in the status line, where "thinking" was. */
+      retry: (attempt) => setStatus(`asking again (${attempt})`),
+    },
   });
 
   Promise.resolve()

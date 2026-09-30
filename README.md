@@ -171,7 +171,9 @@ a nullable step is guarded. `graph_schema` and `graph_query` are its
 two tools for looking closer. When a block still fails (a bad selection, a field that is
 null only sometimes), the error goes back to the model and the
 rewritten block is substituted in place, bounded at two repairs per
-question. `src` on any chart shows the code that is running, because
+question. When the platform is slow to accept a call and yeetd gives
+up on it, the panel asks that turn again for as long as it takes, and
+says so in the status line; `stop` ends it. `src` on any chart shows the code that is running, because
 the code was written by a model and is running on your host.
 
 The bar item shows the newest chart's last eight samples and its latest
