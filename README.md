@@ -1,5 +1,7 @@
 # yeet-ai
 
+![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
+
 Ask for a chart of this host and get one, live, in the
 [Omarchy](https://omarchy.org) bar. Click the colander; a panel drops
 down with one input and three suggestions. Ask — *show me the whole
