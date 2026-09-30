@@ -234,6 +234,8 @@ export default function Page() {
    * below re-runs. The map itself is plain: it is mutated in place. */
   const [generation, setGeneration] = createSignal(0);
   const [sources, setSources] = createSignal({});
+  /* The referral offer takes over the panel while it is open. */
+  const [referring, setReferring] = createSignal(false);
   /* Columns of cards: 0 is automatic — one, then two, up to four as
    * cards arrive — and 1..4 pins it. */
   const [layout, setLayout] = createSignal(0);
@@ -727,10 +729,40 @@ export default function Page() {
         </Show>
 
         <Show when={!loggedOut()}>
-          {/* Top right: a line of its own, right-aligned across the panel. */}
-          <link href="https://yeet.cx/settings" fill align="right">
-            Settings
-          </link>
+          {/* Top right, on a line of their own: the referral toggle and the
+              settings link. A row cannot right-align on its own, so a text
+              filling the row pushes them over. */}
+          <row gap={8}>
+            <text fill> </text>
+            <button
+              horizontalPadding={4}
+              verticalPadding={0}
+              selected={referring()}
+              tooltipText="Refer a friend and earn AI credits"
+              onClick={() => setReferring(!referring())}
+            >
+              Refer a friend
+            </button>
+            <link href="https://yeet.cx/settings">Settings</link>
+          </row>
+        </Show>
+
+        <Show when={!loggedOut() && referring()}>
+          <column gap={6} fill>
+            <text bold size="subtitle">Refer a friend, get $20 in AI credits</text>
+            <text size="bodySmall" wrap fill>
+              Send an email to contact@yeet.cx with your friend's email address and "Omarchy" in the subject line. When they sign up, we'll give you $20 in AI credits.
+            </text>
+            <row gap={8}>
+              <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
+              <button horizontalPadding={4} verticalPadding={0} onClick={() => setReferring(false)}>
+                back
+              </button>
+            </row>
+          </column>
+        </Show>
+
+        <Show when={!loggedOut() && !referring()}>
           <input
             placeholder={shown()[0]}
             value={draft()}
@@ -793,7 +825,7 @@ export default function Page() {
         </Show>
 
         {/* The zero state: three of the examples as bubbles, a click asks. */}
-        <Show when={!cards().length && !loggedOut()}>
+        <Show when={!cards().length && !loggedOut() && !referring()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
             <Index each={pack(shown(), panelW() || CARD_W, charPx())}>
@@ -817,7 +849,7 @@ export default function Page() {
           </column>
         </Show>
 
-        <Show when={tiles().length > 0}>
+        <Show when={tiles().length > 0 && !referring()}>
           <scroll maxHeight={gridHeight()} gap={CARD_GAP}>
             {/* <Index> keys by position and hands down an accessor, so a
                 streamed delta patches the one tile that changed. */}
