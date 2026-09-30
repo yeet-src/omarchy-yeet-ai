@@ -803,8 +803,8 @@ export default function Page() {
                     {(question) => (
                       <button
                         bordered
-                        horizontalPadding={6}
-                        verticalPadding={2}
+                        horizontalPadding={8}
+                        verticalPadding={5}
                         onClick={() => submit(question()).catch((error) => console.warn(`askai: ask failed: ${error?.message ?? error}`))}
                       >
                         {question()}
