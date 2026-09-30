@@ -14,7 +14,9 @@
 const MAX_TURNS = 8;
 const MAX_HISTORY = 12; /* messages kept across turns */
 
-export function createAgent({ model, system, tools, stream, runTool, on = {}, maxTokens = 2048 }) {
+/* Six chart blocks run to four or five thousand tokens; a cap below that
+ * cuts the last block mid-body and it never parses. */
+export function createAgent({ model, system, tools, stream, runTool, on = {}, maxTokens = 8192 }) {
   const history = [];
   /* Either may be a value or a function of no arguments, read at the
    * start of every turn: the panel switches models between questions,
