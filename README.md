@@ -55,7 +55,8 @@ omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
 ```
 
 The plugin can go first as well: until yeet is installed and its daemon
-running, the bar item shows what is missing and how to fix it.
+running, the yeet icon sits greyed in the bar with a warning beside it,
+and clicking it opens a panel with the command to run.
 
 Other ways to install yeet are in the
 [manual installation guide](https://yeet.cx/docs/install/manual-installation?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai).

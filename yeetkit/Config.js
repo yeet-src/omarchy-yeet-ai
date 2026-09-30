@@ -4,6 +4,7 @@
 var id = "cx.yeet.yeet-ai";
 var name = "yeet-ai";
 var yeetArgs = ["run","-y","-q"];
+var barImage = "assets/fecm.png";
 
 /* The command `script -c` runs: yeet with the app, quoted for sh. */
 function shellCommand(appPath) {
