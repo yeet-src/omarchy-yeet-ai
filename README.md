@@ -1,16 +1,29 @@
+<!-- yeet:user-friendly-title: Ask AI for a live chart of your host -->
 # yeet-ai
 
-Ask for a chart of this host and get one, live, in the
-[Omarchy](https://omarchy.org) bar. Click the yeet icon; a panel drops
-down with one input and three suggestions. Ask — *show me the whole
-system in six charts*, *how busy is each cpu core?*, *which processes
-use the most memory?* — and the model does not describe the reading. It
-writes the instrument that takes it: a subscription over the system
-graph, running in a yeet isolate on the machine, and says in one
-sentence which chart it chose and why. The charts are drawn in your
-theme's colours, in a grid that grows with every question.
+> **Ask for a chart of this host and get one, live, in the [Omarchy](https://omarchy.org) bar.** The model does not describe the reading; it writes the instrument that takes it, and the panel draws what arrives.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Omarchy-1793D1?logo=archlinux&logoColor=white" alt="Omarchy">
+  <img src="https://img.shields.io/badge/built%20with-yeet-8A2BE2" alt="built with yeet">
+  <img src="https://img.shields.io/badge/model-Claude%20%C2%B7%20GPT%20%C2%B7%20Gemini-D97757" alt="Claude, GPT and Gemini">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-3DA639" alt="Apache-2.0">
+  <a href="https://discord.gg/JxVseaAVAU"><img src="https://img.shields.io/badge/chat-Discord-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+</p>
+
+Click the yeet icon; a panel drops down with one input and three
+suggestions. Ask — *show me the whole system in six charts*, *how busy
+is each cpu core?*, *which processes use the most memory?* — and a
+subscription over the system graph starts in a yeet isolate on the
+machine, with a sentence on which chart was chosen and why. Twelve
+kinds, from gauges and heat maps to rankings and scatters, in a grid
+that grows with every question.
 
 ![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
+
+Every colour is the theme's. Series take the accent and hues turned
+from it — greys on a monochrome theme — so the same dashboard belongs to
+whatever is running, and follows a theme change on the spot:
 
 <p align="center">
   <img src="assets/dashboard-dark.png" width="49%" alt="a host dashboard on a dark theme">
@@ -18,18 +31,6 @@ theme's colours, in a grid that grows with every question.
   <img src="assets/dashboard-light.png" width="49%" alt="on a light theme">
   <img src="assets/dashboard-os2.png" width="49%" alt="on the OS/2 Warp theme">
 </p>
-
-Twelve kinds: `area`, `line`, `overlay`, `stacked`, `split`, `heat`
-and `sparks` over readings in time; `gauge`, `stat` and `meters` for
-readings against a scale; `bars` and `pie` for a ranking or the parts
-of a whole; `scatter` for two properties of many things. A new sample
-slides in from the right, a changed bar or sector eases to its new
-size, and the head of a live line pulses. Hover anything for its value.
-Series take the theme's accent and hues turned from it, so the charts
-belong to whatever theme is running.
-
-This began as a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
-with the fixed charts taken out and the model put in.
 
 ## Requirements
 
@@ -85,6 +86,16 @@ omarchy plugin remove cx.yeet.yeet-ai
 ```
 
 ## How a question becomes a chart
+
+Twelve kinds: `area`, `line`, `overlay`, `stacked`, `split`, `heat`
+and `sparks` over readings in time; `gauge`, `stat` and `meters` for
+readings against a scale; `bars` and `pie` for a ranking or the parts
+of a whole; `scatter` for two properties of many things. A new sample
+slides in from the right, a changed bar or sector eases to its new
+size, and the head of a live line pulses. Hover anything for its value.
+This began as a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
+with the fixed charts taken out and the model put in.
+
 
 The model answers in markdown, and the part of the answer that is an
 instrument rather than a sentence travels as a container directive —
