@@ -713,7 +713,9 @@ export default function Page() {
           {/* The model is a pull-down: the button names the current one and
               opens a column of the rest under it; picking one closes it.
               The layout button cycles auto, 1, 2, 3, 4 columns. */}
-          <row gap={4}>
+          {/* The status row fills the panel so the Settings link can sit at
+              its far right, after a text that takes the remaining width. */}
+          <row gap={4} fill>
             <button
               horizontalPadding={4}
               verticalPadding={0}
@@ -738,6 +740,8 @@ export default function Page() {
                 stop
               </button>
             </Show>
+            <text fill> </text>
+            <link href="https://yeet.cx/settings">Settings</link>
           </row>
           <Show when={picking()}>
             <column gap={0}>
@@ -799,9 +803,6 @@ export default function Page() {
           </scroll>
         </Show>
 
-        <row gap={4}>
-          <link href="https://yeet.cx/settings">Settings</link>
-        </row>
       </panel>
     </>
   );
