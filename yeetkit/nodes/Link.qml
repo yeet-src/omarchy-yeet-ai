@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell.Io
 import qs.Commons
 
-// <link href size>  a run of text that opens a URL in the browser when
+// <link href size fill align>  a run of text that opens a URL in the browser when
 // clicked. The label is the child string; `href` is what opens. Drawn
 // in the theme's accent, underlined, with a pointing cursor — the shell
 // runs xdg-open, since the isolate cannot.
@@ -15,9 +15,15 @@ Text {
 
   property string href: ""
   property string size: "bodySmall"
+  property bool fill: false
+  property string align: "left"
 
   readonly property bool inRow: parent ? parent.axis === "x" : false
   anchors.verticalCenter: inRow && parent ? parent.verticalCenter : undefined
+  /* In a column, `fill` takes the width and `align` places the label in it. */
+  anchors.left: fill && parent && !inRow ? parent.left : undefined
+  anchors.right: fill && parent && !inRow ? parent.right : undefined
+  horizontalAlignment: align === "right" ? Text.AlignRight : align === "center" ? Text.AlignHCenter : Text.AlignLeft
 
   property Process opener: Process {}
 

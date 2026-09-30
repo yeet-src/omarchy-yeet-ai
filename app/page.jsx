@@ -699,6 +699,10 @@ export default function Page() {
         </Show>
 
         <Show when={!loggedOut()}>
+          {/* Top right: a line of its own, right-aligned across the panel. */}
+          <link href="https://yeet.cx/settings" fill align="right">
+            Settings
+          </link>
           <input
             placeholder={shown()[0]}
             value={draft()}
@@ -713,9 +717,7 @@ export default function Page() {
           {/* The model is a pull-down: the button names the current one and
               opens a column of the rest under it; picking one closes it.
               The layout button cycles auto, 1, 2, 3, 4 columns. */}
-          {/* The status row fills the panel so the Settings link can sit at
-              its far right, after a text that takes the remaining width. */}
-          <row gap={4} fill>
+          <row gap={4}>
             <button
               horizontalPadding={4}
               verticalPadding={0}
@@ -739,9 +741,7 @@ export default function Page() {
                 stop
               </button>
             </Show>
-            {/* The status takes what is left, which puts the link hard right. */}
-            <text size="caption" tone={busy() ? "accent" : "fg"} fill>{statusLine()}</text>
-            <link href="https://yeet.cx/settings">Settings</link>
+            <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
           </row>
           <Show when={picking()}>
             <column gap={0}>
