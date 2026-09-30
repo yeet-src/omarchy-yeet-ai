@@ -8,7 +8,7 @@
 # with `yeet login`.
 #
 # Run it from the plugin checkout, which is this repository:
-#   sh ~/.config/omarchy/plugins/cx.yeet.kernel-genie/install-yeet.sh
+#   sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
 
 set -eu
 

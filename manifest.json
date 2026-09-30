@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "cx.yeet.kernel-genie",
-  "name": "kernel-genie",
+  "id": "cx.yeet.yeet-ai",
+  "name": "yeet-ai",
   "version": "0.1.0",
   "author": "yeet",
   "license": "Apache-2.0",
-  "description": "Ask for a chart of this host and get one, live, in the bar. kernel-genie writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
-  "homepage": "https://github.com/yeet-src/kernel-genie",
+  "description": "Ask for a chart of this host and get one, live, in the bar. yeet-ai writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
+  "homepage": "https://github.com/yeet-src/yeet-ai",
   "kinds": [
     "bar-widget"
   ],
@@ -14,8 +14,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "kernel-genie",
-    "description": "Ask for a chart of this host and get one, live, in the bar. kernel-genie writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
+    "displayName": "yeet-ai",
+    "description": "Ask for a chart of this host and get one, live, in the bar. yeet-ai writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

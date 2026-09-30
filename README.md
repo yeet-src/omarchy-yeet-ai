@@ -1,4 +1,4 @@
-# kernel-genie
+# yeet-ai
 
 Ask for a chart of this host and get one, live, in the
 [Omarchy](https://omarchy.org) bar. Click the colander; a panel drops
@@ -121,7 +121,7 @@ Add the plugin first. Until yeet is installed and its daemon running, the
 bar item shows what is missing and how to fix it:
 
 ```sh
-omarchy plugin add https://github.com/yeet-src/omarchy-kernel-genie --enable
+omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
 ```
 
 Then run the pinned installer from the plugin checkout and log in. The
@@ -130,7 +130,7 @@ package's sha256 and signature against values written in the script,
 installs it and starts the daemon:
 
 ```sh
-sh ~/.config/omarchy/plugins/cx.yeet.kernel-genie/install-yeet.sh
+sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
 yeet login
 ```
 
@@ -153,7 +153,7 @@ choice lives as long as the isolate does.
 ## Remove
 
 ```sh
-omarchy plugin remove cx.yeet.kernel-genie
+omarchy plugin remove cx.yeet.yeet-ai
 ```
 
 ## Building from source
@@ -218,7 +218,7 @@ into the wire, so its console output never reaches the shell log; to
 see a failure in a terminal, ask the same question through
 `scripts/ask.js`.
 
-`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.kernel-genie`
+`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.yeet-ai`
 and rebuilds on change. The shell reloads `app.js` on its own, but
 picking up a change to the QML entry files needs `omarchy restart shell`.
 
