@@ -16,7 +16,7 @@ import "yeetkit" as Kit
 // never resolve.
 Panel {
   id: root
-  moduleName: "cx.yeet.askai"
+  moduleName: "cx.yeet.kernel-genie"
   manageIpc: false
 
   property var anchorItem: null
@@ -184,7 +184,7 @@ Panel {
             selectByMouse: true
             textFormat: TextEdit.PlainText
             wrapMode: TextEdit.WordWrap
-            text: "askai draws from a yeet isolate, so it needs yeet installed and its daemon running."
+            text: "kernel-genie draws from a yeet isolate, so it needs yeet installed and its daemon running."
             color: Color.muted
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall

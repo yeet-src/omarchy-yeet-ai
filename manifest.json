@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "cx.yeet.askai",
-  "name": "askai",
+  "id": "cx.yeet.kernel-genie",
+  "name": "kernel-genie",
   "version": "0.1.0",
   "author": "yeet",
   "license": "Apache-2.0",
-  "description": "Ask AI for a chart of this host. The model writes a subscription over the system graph and the panel draws it live, in braille, under the Omarchy bar.",
-  "homepage": "https://github.com/yeet-src/omarchy-askai",
+  "description": "Ask for a chart of this host and get one, live, in the bar. kernel-genie writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
+  "homepage": "https://github.com/yeet-src/kernel-genie",
   "kinds": [
     "bar-widget"
   ],
@@ -14,8 +14,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Ask AI",
-    "description": "Ask AI for a chart of this host. The model writes a subscription over the system graph and the panel draws it live, in braille, under the Omarchy bar.",
+    "displayName": "kernel-genie",
+    "description": "Ask for a chart of this host and get one, live, in the bar. kernel-genie writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

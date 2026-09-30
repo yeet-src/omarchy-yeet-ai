@@ -48,7 +48,7 @@ const CHART_H = 180;
 const MAX_COLUMNS = 4;
 /* The Refer a friend and Settings links at the top right. Off for now;
  * the referral page and the link stay wired for when it is on. */
-const SHOW_LINKS = false;
+const SHOW_LINKS = true;
 const CLOSE_W = 32; /* px the × button takes beside a heading */
 const CODE_H = 180; /* px of source shown before it scrolls */
 const REPAIR_WAIT = 4000; /* a chart that has not drawn or failed by then is left alone */
@@ -714,7 +714,7 @@ export default function Page() {
 
   return (
     <>
-      <bar image="assets/fecm.png" heat={busy() ? 0.5 : -1} tooltipText={`Ask AI · ${chartCount()} charts`}>
+      <bar image="assets/fecm.png" heat={busy() ? 0.5 : -1} tooltipText={`Kernel Genie · ${chartCount()} charts`}>
         {barText()}
       </bar>
 

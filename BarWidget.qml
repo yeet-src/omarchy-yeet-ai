@@ -10,7 +10,7 @@ import "yeetkit" as Kit
 // clock so the shell's open/close/toggle routes land here.
 BarWidget {
   id: root
-  moduleName: "cx.yeet.askai"
+  moduleName: "cx.yeet.kernel-genie"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false

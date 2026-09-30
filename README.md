@@ -1,27 +1,33 @@
-# askai
+# kernel-genie
 
-Ask AI for a chart of this host, from the [Omarchy](https://omarchy.org)
-bar. The bar item reads `yeet:ai`; click it and a panel drops down with
-one input and three example questions. Ask — *how busy is each cpu
-core?*, *which processes use the most memory?*, *how much network
-traffic is there?* — and the model does not describe the reading. It
+Ask for a chart of this host and get one, live, in the
+[Omarchy](https://omarchy.org) bar. Click the colander; a panel drops
+down with one input and three suggestions. Ask — *show me the whole
+system in six charts*, *how busy is each cpu core?*, *which processes
+use the most memory?* — and the model does not describe the reading. It
 writes the instrument that takes it: a subscription over the system
 graph, running in a yeet isolate on the machine, and says in one
-sentence which chart it chose and why. The chart is drawn in the
-theme's colours, live, in a grid that grows with every question.
+sentence which chart it chose and why. The charts are drawn in your
+theme's colours, in a grid that grows with every question.
 
-Ten kinds: `area`, `line`, `overlay`, `stacked`, `split` and `heat` over
-readings in time; `gauge` for one reading with a ceiling; `bars` and
-`pie` for a ranking or the parts of a whole; `scatter` for two
-properties of many things. A new sample slides in from the right, a
-changed bar or sector eases to its new size, and the head of a live
-line pulses. Series take the theme's accent and hues turned from it, so
-the charts belong to whatever theme is running.
+<p align="center">
+  <img src="assets/dashboard-dark.png" width="49%" alt="a host dashboard on a dark theme">
+  <img src="assets/dashboard-amber.png" width="49%" alt="the same on an amber theme">
+  <img src="assets/dashboard-light.png" width="49%" alt="on a light theme">
+  <img src="assets/dashboard-os2.png" width="49%" alt="on the OS/2 Warp theme">
+</p>
 
-This is a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
-with the fixed charts taken out and the model put in. The bar item's
-braille sparkline, the theme-following colours and the
-subscription-not-polling stance are all proctop's.
+Twelve kinds: `area`, `line`, `overlay`, `stacked`, `split`, `heat`
+and `sparks` over readings in time; `gauge`, `stat` and `meters` for
+readings against a scale; `bars` and `pie` for a ranking or the parts
+of a whole; `scatter` for two properties of many things. A new sample
+slides in from the right, a changed bar or sector eases to its new
+size, and the head of a live line pulses. Hover anything for its value.
+Series take the theme's accent and hues turned from it, so the charts
+belong to whatever theme is running.
+
+This began as a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
+with the fixed charts taken out and the model put in.
 
 ## How a question becomes a chart
 
@@ -115,7 +121,7 @@ Add the plugin first. Until yeet is installed and its daemon running, the
 bar item shows what is missing and how to fix it:
 
 ```sh
-omarchy plugin add https://github.com/yeet-src/omarchy-askai --enable
+omarchy plugin add https://github.com/yeet-src/omarchy-kernel-genie --enable
 ```
 
 Then run the pinned installer from the plugin checkout and log in. The
@@ -124,7 +130,7 @@ package's sha256 and signature against values written in the script,
 installs it and starts the daemon:
 
 ```sh
-sh ~/.config/omarchy/plugins/cx.yeet.askai/install-yeet.sh
+sh ~/.config/omarchy/plugins/cx.yeet.kernel-genie/install-yeet.sh
 yeet login
 ```
 
@@ -147,7 +153,7 @@ choice lives as long as the isolate does.
 ## Remove
 
 ```sh
-omarchy plugin remove cx.yeet.askai
+omarchy plugin remove cx.yeet.kernel-genie
 ```
 
 ## Building from source
@@ -212,7 +218,7 @@ into the wire, so its console output never reaches the shell log; to
 see a failure in a terminal, ask the same question through
 `scripts/ask.js`.
 
-`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.askai`
+`npm run dev` builds straight into `~/.config/omarchy/plugins/cx.yeet.kernel-genie`
 and rebuilds on change. The shell reloads `app.js` on its own, but
 picking up a change to the QML entry files needs `omarchy restart shell`.
 
