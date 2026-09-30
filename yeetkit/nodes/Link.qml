@@ -32,7 +32,7 @@ Text {
    * any binding — so the label is kept aside and the anchor written
    * back over it. */
   property string label: ""
-  function anchor() { return "<a href=\"" + root.href + "\">" + root.label + "</a>" }
+  function anchor() { return "<a href=\"" + (root.href === "" ? "#" : root.href) + "\">" + root.label + "</a>" }
   onTextChanged: {
     if (root.text.indexOf("<a ") === 0) return
     root.label = root.text
@@ -45,9 +45,13 @@ Text {
   font.pixelSize: Style.font[size] || Style.font.bodySmall
   font.underline: true
   renderType: Text.NativeRendering
+  /* With no href the link is an action: the click goes up and nothing
+   * opens, so a page can draw a control as a link. */
   onLinkActivated: function (link) {
-    opener.command = ["xdg-open", String(link)]
-    opener.running = true
+    if (root.href !== "" && root.href !== "#") {
+      opener.command = ["xdg-open", String(link)]
+      opener.running = true
+    }
     ev("click", { href: link })
   }
   HoverHandler { cursorShape: Qt.PointingHandCursor }

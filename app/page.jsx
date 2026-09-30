@@ -732,17 +732,10 @@ export default function Page() {
           {/* Top right, on a line of their own: the referral toggle and the
               settings link. A row cannot right-align on its own, so a text
               filling the row pushes them over. */}
-          <row gap={8}>
-            <text fill> </text>
-            <button
-              horizontalPadding={4}
-              verticalPadding={0}
-              selected={referring()}
-              tooltipText="Refer a friend and earn AI credits"
-              onClick={() => setReferring(!referring())}
-            >
-              Refer a friend
-            </button>
+          <row gap={0}>
+            <spacer width={Math.max(0, (panelW() || PANEL_MIN_W) - charPx() * 26 - 8)} height={1} />
+            <link onClick={() => setReferring(!referring())}>{referring() ? "Back" : "Refer a friend"}</link>
+            <text>{"   "}</text>
             <link href="https://yeet.cx/settings">Settings</link>
           </row>
         </Show>
@@ -753,12 +746,7 @@ export default function Page() {
             <text size="bodySmall" wrap fill>
               Send an email to contact@yeet.cx with your friend's email address and "Omarchy" in the subject line. When they sign up, we'll give you $20 in AI credits.
             </text>
-            <row gap={8}>
-              <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
-              <button horizontalPadding={4} verticalPadding={0} onClick={() => setReferring(false)}>
-                back
-              </button>
-            </row>
+            <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
           </column>
         </Show>
 
