@@ -82,9 +82,17 @@ This began as a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
 with the fixed charts taken out and the model put in.
 
 
-The model answers in markdown, and the part of the answer that is an
-instrument rather than a sentence travels as a container directive —
-the shape the yeet notebook's `:::ui` block has:
+Every reading comes from yeet's
+[system graph](https://yeet.cx/docs/capabilities?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai#live-system-state),
+a typed GraphQL view of the host — processes, cpu, memory, network,
+sockets, containers, sensors — where every field can be subscribed to
+at an interval, so nothing here polls. The model answers in markdown,
+and the part of the answer that is an instrument rather than a sentence
+travels as a `:::chart` container directive. A modified remark
+pipeline in the isolate parses the reply as it streams, lifts each
+block's JavaScript out, and executes it in the yeet engine's V8
+isolate on the host, where [`yeet.graph.subscribe`](https://yeet.cx/docs/scripts/yeet-global?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai#yeet-graph-subscribe)
+is in scope:
 
 ````markdown
 CPU as a share of every core, one sample a second.
@@ -144,8 +152,7 @@ the system graph and renders it as compact SDL — types, arguments,
 descriptions clipped to a line, and the `!` marks that say which fields
 can be null — and that schema rides in every prompt, with the rule that
 a nullable step is guarded. `graph_schema` and `graph_query` are its
-two tools for looking closer, the same pair the yeet `graph-chat`
-example uses. When a block still fails (a bad selection, a field that is
+two tools for looking closer. When a block still fails (a bad selection, a field that is
 null only sometimes), the error goes back to the model and the
 rewritten block is substituted in place, bounded at two repairs per
 question. `src` on any chart shows the code that is running, because
