@@ -750,9 +750,10 @@ export default function Page() {
         <Show when={!loggedOut() && referring()}>
           <column gap={6} fill>
             <text bold size="subtitle">Refer a friend, get $20 in AI credits</text>
-            <text size="bodySmall" wrap fill>
-              Send an email to contact@yeet.cx with your friend's email address and "Omarchy" in the subject line. When they sign up, we'll give you $20 in AI credits.
-            </text>
+            {/* Selectable, so the address can be copied; the address in bold. */}
+            <prose>
+              {"Send an email to <b>contact@yeet.cx</b> with your friend's email address and \"Omarchy\" in the subject line. When they sign up, we'll give you $20 in AI credits."}
+            </prose>
             <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
           </column>
         </Show>
