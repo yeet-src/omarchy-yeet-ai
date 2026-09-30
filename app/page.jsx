@@ -139,6 +139,13 @@ const SHOWN = 1; /* single-chart bubbles on show at once… */
 const DASH_SHOWN = 2; /* …beside this many dashboards: most suggestions are dashboards */
 const ROTATE_MS = 10000; /* …and how often they move on */
 
+/* Held apart from the JSX: a string literal placed as a child is
+ * pre-escaped by the compiler, and the <b> tags would arrive as text. */
+const REFERRAL =
+  "From the email address paired with your yeet account, send an email to <b>contact@yeet.cx</b> "
+  + "with your friend's email address and <b>Omarchy</b> in the subject line.\n\n"
+  + "When they sign up, we'll give you <b>$20</b> in free AI credits.";
+
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
 
 /* Bubbles packed into rows by their width in pixels: the label at the
@@ -759,9 +766,7 @@ export default function Page() {
           <column gap={6} fill>
             <text bold size="subtitle">Refer a friend, get $20 in free AI credits</text>
             {/* Selectable, so the address can be copied; the address in bold. */}
-            <prose>
-              {"From the email address paired with your yeet account, send an email to <b>contact@yeet.cx</b> with your friend's email address and <b>Omarchy</b> in the subject line.\n\nWhen they sign up, we'll give you <b>$20</b> in free AI credits."}
-            </prose>
+            <prose>{REFERRAL}</prose>
             <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
           </column>
         </Show>
