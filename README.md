@@ -11,6 +11,8 @@
   <a href="https://discord.gg/JxVseaAVAU"><img src="https://img.shields.io/badge/chat-Discord-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
+![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
+
 Click the yeet icon; a panel drops down with one input and three
 suggestions. Ask — *show me the whole system in six charts*, *how busy
 is each cpu core?*, *which processes use the most memory?* — and a
@@ -18,8 +20,6 @@ subscription over the system graph starts in a yeet isolate on the
 machine, with a sentence on which chart was chosen and why. Twelve
 kinds, from gauges and heat maps to rankings and scatters, in a grid
 that grows with every question.
-
-![yeet-ai asked for the whole system in six charts, drawing them one by one](assets/demo.gif)
 
 Every colour is the theme's. Series take the accent and hues turned
 from it — greys on a monochrome theme — so the same dashboard belongs to
