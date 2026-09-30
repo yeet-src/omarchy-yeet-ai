@@ -60,7 +60,10 @@ Text {
   linkColor: Color.accent
   font.family: Style.font.family
   font.pixelSize: Style.font[size] || Style.font.bodySmall
-  renderType: Text.NativeRendering
+  /* Qt's rasterizer, unhinted: native hinting snaps a stem like the i's
+   * to a whole pixel and it reads bolder than its neighbours. */
+  renderType: Text.QtRendering
+  font.hintingPreference: Font.PreferNoHinting
   /* With no href the link is an action: the click goes up and nothing
    * opens, so a page can draw a control as a link. */
   onLinkActivated: function (link) {
