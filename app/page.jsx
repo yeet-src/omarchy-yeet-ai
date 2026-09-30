@@ -734,13 +734,13 @@ export default function Page() {
                 {`⊞ ${layoutLabel()}`}
               </button>
             </Show>
-            <text size="caption" tone={busy() ? "accent" : "fg"}>{statusLine()}</text>
             <Show when={busy()}>
               <button horizontalPadding={4} verticalPadding={0} tooltipText="Stop generating" onClick={() => agent.cancel()}>
                 stop
               </button>
             </Show>
-            <text fill> </text>
+            {/* The status takes what is left, which puts the link hard right. */}
+            <text size="caption" tone={busy() ? "accent" : "fg"} fill>{statusLine()}</text>
             <link href="https://yeet.cx/settings">Settings</link>
           </row>
           <Show when={picking()}>
