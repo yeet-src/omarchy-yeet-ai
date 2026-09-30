@@ -57,26 +57,7 @@ omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
 The plugin can go first as well: until yeet is installed and its daemon
 running, the bar item shows what is missing and how to fix it.
 
-To install yeet without piping to a shell, the plugin checkout carries a
-pinned installer. It fetches a fixed yeet release for your architecture,
-checks the package's sha256 and signature against values written in the
-script, installs it and starts the daemon:
-
-```sh
-sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
-yeet login
-```
-
-To track new yeet releases along with the rest of the system, use the AUR
-package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead:
-
-```sh
-yay -S yeet-bin
-sudo systemctl enable --now yeetd
-yeet login
-```
-
-Other package managers are covered in the
+Other ways to install yeet are in the
 [manual installation guide](https://yeet.cx/docs/install/manual-installation?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai).
 
 The model is chosen from a pull-down in the panel — `claude-opus-5` by
