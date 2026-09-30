@@ -681,7 +681,13 @@ export default function Page() {
   const panelWidth = () => columns() * CARD_W + (columns() - 1) * CARD_GAP;
   /* One character's width in pixels, from what the panel measured. */
   const charPx = () => (panelW() > 0 && cols() > 0 ? panelW() / cols() : 8);
-  const tileW = () => (panelW() > 0 ? Math.max(200, Math.floor((panelW() - (columns() - 1) * CARD_GAP) / columns())) : CARD_W);
+  /* From the narrower of what the shell measured and what is being asked
+   * for: the measurement lags a change of column count by a frame, and a
+   * tile sized from a stale, wider panel overflows the new one. */
+  const tileW = () => {
+    const width = Math.min(panelW() > 0 ? panelW() : Infinity, panelWidth());
+    return Math.max(200, Math.floor((width - (columns() - 1) * CARD_GAP) / columns()));
+  };
   const layoutLabel = () => (layout() ? `${layout()}×` : `auto ${columns()}×`);
 
   return (
