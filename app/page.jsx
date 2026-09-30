@@ -46,8 +46,7 @@ const PANEL_MIN_W = 540; /* px: the status row and a question fit in one column 
 const CARD_GAP = 12;
 const CHART_H = 180;
 const MAX_COLUMNS = 4;
-/* The Refer a friend and Settings links at the top right. Off for now;
- * the referral page and the link stay wired for when it is on. */
+/* The Settings link at the top right. */
 const SHOW_LINKS = true;
 const CLOSE_W = 32; /* px the × button takes beside a heading */
 const CODE_H = 180; /* px of source shown before it scrolls */
@@ -141,12 +140,6 @@ const DASHBOARDS = [
 const SHOWN = 1; /* single-chart bubbles on show at once… */
 const DASH_SHOWN = 2; /* …beside this many dashboards: most suggestions are dashboards */
 const ROTATE_MS = 10000; /* …and how often they move on */
-
-/* The prose node's markup: **bold**, and a blank line between paragraphs. */
-const REFERRAL =
-  "From the email address paired with your yeet account, send an email to **contact@yeet.cx** "
-  + "with your friend's email address and **Omarchy** in the subject line.\n\n"
-  + "When they sign up, we'll give you **$20** in free AI credits.";
 
 const HINT = "Pick one, or type your own. The model writes a subscription over the system graph and the panel draws what arrives.";
 
@@ -243,15 +236,6 @@ export default function Page() {
    * below re-runs. The map itself is plain: it is mutated in place. */
   const [generation, setGeneration] = createSignal(0);
   const [sources, setSources] = createSignal({});
-  /* The referral offer takes over the panel while it is open. */
-  const [referring, setReferring] = createSignal(false);
-  /* The width the panel had when the offer opened, held while it is up,
-   * so the page does not reflow as charts come and go behind it. */
-  const [referW, setReferW] = createSignal(0);
-  const refer = (on) => {
-    if (on) setReferW(panelWidth());
-    setReferring(on);
-  };
   /* Columns of cards: 0 is automatic — one, then two, up to four as
    * cards arrive — and 1..4 pins it. */
   const [layout, setLayout] = createSignal(0);
@@ -700,7 +684,7 @@ export default function Page() {
     return rows;
   };
   const panelWidth = () =>
-    referring() && referW() > 0 ? referW() : Math.max(PANEL_MIN_W, columns() * CARD_W + (columns() - 1) * CARD_GAP);
+    Math.max(PANEL_MIN_W, columns() * CARD_W + (columns() - 1) * CARD_GAP);
   /* One character's width in pixels, from what the panel measured. */
   const charPx = () => (panelW() > 0 && cols() > 0 ? panelW() / cols() : 8);
   /* From the narrower of what the shell measured and what is being asked
@@ -748,36 +732,23 @@ export default function Page() {
         </Show>
 
         <Show when={!loggedOut()}>
-          {/* Top right, on a line of their own: the referral toggle and the
-              settings link. A row cannot right-align on its own, so a text
-              filling the row pushes them over. */}
+          {/* Top right, on a line of its own: the settings link. A row
+              cannot right-align on its own, so a text filling the row
+              pushes it over. */}
           <Show when={SHOW_LINKS}>
             <link
               fill
               align="right"
               links={JSON.stringify([
-                { label: referring() ? "Back" : "Refer a friend", href: "action:refer" },
                 { label: "Settings", href: "https://yeet.cx/settings?utm_source=omarchy&utm_medium=plugin&utm_campaign=omarchy-yeet-ai" },
               ])}
-              onClick={(e) => {
-                if (e.href === "action:refer") refer(!referring());
-              }}
             >
               {" "}
             </link>
           </Show>
         </Show>
 
-        <Show when={!loggedOut() && referring()}>
-          <column gap={6} fill>
-            <text bold size="subtitle">Refer a friend, get $20 in free AI credits</text>
-            {/* Selectable, so the address can be copied; the address in bold. */}
-            <prose>{REFERRAL}</prose>
-            <link href="mailto:contact@yeet.cx?subject=Omarchy">Email contact@yeet.cx</link>
-          </column>
-        </Show>
-
-        <Show when={!loggedOut() && !referring()}>
+        <Show when={!loggedOut()}>
           <input
             placeholder={shown()[0]}
             value={draft()}
@@ -840,7 +811,7 @@ export default function Page() {
         </Show>
 
         {/* The zero state: three of the examples as bubbles, a click asks. */}
-        <Show when={!cards().length && !loggedOut() && !referring()}>
+        <Show when={!cards().length && !loggedOut()}>
           <column gap={4}>
             <text size="bodySmall" wrap fill>{HINT}</text>
             <Index each={pack(shown(), panelW() || CARD_W, charPx())}>
@@ -864,7 +835,7 @@ export default function Page() {
           </column>
         </Show>
 
-        <Show when={tiles().length > 0 && !referring()}>
+        <Show when={tiles().length > 0}>
           <scroll maxHeight={gridHeight()} gap={CARD_GAP}>
             {/* <Index> keys by position and hands down an accessor, so a
                 streamed delta patches the one tile that changed. */}
