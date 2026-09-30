@@ -6,7 +6,7 @@
   "author": "yeet",
   "license": "Apache-2.0",
   "description": "Ask for a chart of this host and get one, live, in the bar. yeet-ai writes a subscription over the system graph and draws what arrives: dashboards, gauges, heat maps, rankings, in your theme's colours.",
-  "homepage": "https://github.com/yeet-src/yeet-ai",
+  "homepage": "https://github.com/yeet-src/omarchy-yeet-ai",
   "kinds": [
     "bar-widget"
   ],
