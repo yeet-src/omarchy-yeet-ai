@@ -2,49 +2,53 @@ import QtQuick
 import qs.Commons
 
 // <prose size>  a paragraph the reader can select and copy, with a
-// little markup: the child string may carry <b>, <i> and <u>. Escape
-// nothing else: the client hands the string in as `text`, and only
-// those three tags are honoured, so a stray angle bracket stays text.
-TextEdit {
+// little markup: the child string may carry <b>, <i> and <u>, and a
+// newline is a line break. Nothing else is honoured: the string is
+// escaped first, so a stray angle bracket stays text.
+//
+// An Item around the TextEdit: the client sets `text` from the child
+// string, and a rich-text edit would fold the string's newlines while
+// parsing it, before anything here could turn them into breaks.
+Item {
   id: root
   property var client: null
   property int nodeId: 0
   property Item slot: null
   signal ev(string type, var payload)
 
+  property string text: ""
   property string size: "bodySmall"
 
   readonly property bool inRow: parent ? parent.axis === "x" : false
   anchors.left: parent && !inRow ? parent.left : undefined
   anchors.right: parent && !inRow ? parent.right : undefined
+  implicitWidth: body.implicitWidth
+  implicitHeight: body.implicitHeight
+  height: implicitHeight
 
-  readOnly: true
-  selectByMouse: true
-  textFormat: TextEdit.RichText
-  wrapMode: TextEdit.WordWrap
-  color: Color.popups.text
-  selectionColor: Color.accent
-  selectedTextColor: Color.popups.background
-  font.family: Style.font.family
-  font.pixelSize: Style.font[size] || Style.font.bodySmall
-  renderType: Text.QtRendering
-  font.hintingPreference: Font.PreferNoHinting
-
-  /* The client sets `text` from the child string; it is escaped except
-   * for the three tags, and written back as rich text. */
-  property bool rewriting: false
-  onTextChanged: {
-    if (rewriting) return
-    rewriting = true
-    var raw = root.getText(0, root.length)
-    var safe = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  function rich(raw) {
+    var safe = String(raw).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     safe = safe.replace(/&lt;(\/?)(b|i|u)&gt;/g, "<$1$2>")
-    /* Rich text folds newlines; a line break in the string is a <br>. */
-    safe = safe.replace(/[\n\u2028\u2029]/g, "<br>")
-    root.text = safe
-    rewriting = false
+    return safe.replace(/\r?\n/g, "<br>")
   }
-  /* A panel's key catcher takes keys first; while a selection is being
-   * made here it has to stand aside. */
-  onActiveFocusChanged: if (client) client.inputFocus = activeFocus
+
+  TextEdit {
+    id: body
+    width: root.width
+    readOnly: true
+    selectByMouse: true
+    textFormat: TextEdit.RichText
+    wrapMode: TextEdit.WordWrap
+    color: Color.popups.text
+    selectionColor: Color.accent
+    selectedTextColor: Color.popups.background
+    font.family: Style.font.family
+    font.pixelSize: Style.font[root.size] || Style.font.bodySmall
+    renderType: Text.QtRendering
+    font.hintingPreference: Font.PreferNoHinting
+    text: root.rich(root.text)
+    /* A panel's key catcher takes keys first; while a selection is
+     * being made here it has to stand aside. */
+    onActiveFocusChanged: if (root.client) root.client.inputFocus = activeFocus
+  }
 }
