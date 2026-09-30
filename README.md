@@ -31,6 +31,59 @@ belong to whatever theme is running.
 This began as a fork of [proctop](https://github.com/yeet-src/omarchy-proctop)
 with the fixed charts taken out and the model put in.
 
+## Requirements
+
+- [yeet](https://yeet.cx) — `yeet` on `PATH` with `yeetd` running, and
+  `yeet login` completed. Charts need the daemon; asking needs the login,
+  since the model is reached through the platform's `yeet:ai`.
+- `script` from util-linux, which every Arch install has
+
+The plugin runs one isolate — `yeet run app.js` under `script`, so it has a
+terminal — and talks to it over that process's stdin and stdout. No port is
+opened. Charts live in that isolate, which stops a few seconds after the
+last bar widget goes away, so a shell restart clears the panel.
+
+## Install
+
+Add the plugin first. Until yeet is installed and its daemon running, the
+bar item shows what is missing and how to fix it:
+
+```sh
+omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
+```
+
+Then run the pinned installer from the plugin checkout and log in. The
+installer fetches a fixed yeet release for your architecture, checks the
+package's sha256 and signature against values written in the script,
+installs it and starts the daemon:
+
+```sh
+sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
+yeet login
+```
+
+To track new yeet releases along with the rest of the system, use the AUR
+package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead:
+
+```sh
+yay -S yeet-bin
+sudo systemctl enable --now yeetd
+yeet login
+```
+
+Other package managers are covered in the
+[manual installation guide](https://yeet.cx/docs/install/manual-installation).
+
+The model is chosen from a pull-down in the panel — `claude-opus-5` by
+default — from the list in `MODELS` at the top of `app/page.jsx`. The
+choice lives as long as the isolate does.
+
+## Remove
+
+```sh
+omarchy plugin remove cx.yeet.yeet-ai
+```
+
 ## How a question becomes a chart
 
 The model answers in markdown, and the part of the answer that is an
@@ -104,59 +157,6 @@ the code was written by a model and is running on your host.
 
 The bar item shows the newest chart's last eight samples and its latest
 value, so a chart keeps reporting after the panel is shut.
-
-## Requirements
-
-- [yeet](https://yeet.cx) — `yeet` on `PATH` with `yeetd` running, and
-  `yeet login` completed. Charts need the daemon; asking needs the login,
-  since the model is reached through the platform's `yeet:ai`.
-- `script` from util-linux, which every Arch install has
-
-The plugin runs one isolate — `yeet run app.js` under `script`, so it has a
-terminal — and talks to it over that process's stdin and stdout. No port is
-opened. Charts live in that isolate, which stops a few seconds after the
-last bar widget goes away, so a shell restart clears the panel.
-
-## Install
-
-Add the plugin first. Until yeet is installed and its daemon running, the
-bar item shows what is missing and how to fix it:
-
-```sh
-omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
-```
-
-Then run the pinned installer from the plugin checkout and log in. The
-installer fetches a fixed yeet release for your architecture, checks the
-package's sha256 and signature against values written in the script,
-installs it and starts the daemon:
-
-```sh
-sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
-yeet login
-```
-
-To track new yeet releases along with the rest of the system, use the AUR
-package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead:
-
-```sh
-yay -S yeet-bin
-sudo systemctl enable --now yeetd
-yeet login
-```
-
-Other package managers are covered in the
-[manual installation guide](https://yeet.cx/docs/install/manual-installation).
-
-The model is chosen from a pull-down in the panel — `claude-opus-5` by
-default — from the list in `MODELS` at the top of `app/page.jsx`. The
-choice lives as long as the isolate does.
-
-## Remove
-
-```sh
-omarchy plugin remove cx.yeet.yeet-ai
-```
 
 ## Building from source
 
