@@ -714,7 +714,7 @@ export default function Page() {
 
   return (
     <>
-      <bar image="assets/fecm.png" heat={busy() ? 0.5 : -1} tooltipText={`Kernel Genie · ${chartCount()} charts`}>
+      <bar image="assets/fecm.png" heat={busy() ? 0.5 : -1} tooltipText={`yeet-ai · ${chartCount()} charts`}>
         {barText()}
       </bar>
 
