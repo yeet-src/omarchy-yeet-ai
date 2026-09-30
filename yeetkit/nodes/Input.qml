@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Ui
+import qs.Commons
 
 // <input value placeholder password onInput onSubmit onComplete>
 // Controlled: `value` is what the app says, `input` is what was typed.
@@ -17,6 +18,9 @@ TextField {
   anchors.left: parent && !inRow ? parent.left : undefined
   anchors.right: parent && !inRow ? parent.right : undefined
   placeholderText: placeholder
+  /* The shell's field pads for a dialog form; at the panel's font the
+   * descenders of what is typed touch the border. A little more room. */
+  verticalPadding: Style.spacing.inputPaddingY + 3
 
   onValueChanged: if (text !== value) text = value
   onTextEdited: ev("input", { value: text })
