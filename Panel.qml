@@ -192,17 +192,17 @@ Panel {
 
           Section {
             width: parent.width
-            visible: help.trouble === "daemon"
-            label: "Start"
-            value: "sudo systemctl enable --now yeetd"
+            visible: help.trouble === "missing"
+            label: "Install"
+            value: "yay -S yeet-bin"
             copyable: true
           }
 
           Section {
             width: parent.width
-            visible: help.trouble === "missing"
-            label: "Install"
-            value: "curl -fsSL https://yeet.cx | sh"
+            visible: help.trouble !== ""
+            label: "Start"
+            value: "sudo systemctl enable --now yeetd"
             copyable: true
           }
 
