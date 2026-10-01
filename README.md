@@ -46,15 +46,35 @@ last bar widget goes away, so a shell restart clears the panel.
 
 ## Install
 
-Install yeet and log this host in, then add the plugin:
+Add the plugin first. Until yeet is installed and its daemon running, the
+yeet icon sits greyed in the bar and the panel shows what is missing and how
+to fix it:
 
 ```sh
-curl -fsSL https://yeet.cx | sh
-yeet login
 omarchy plugin add https://github.com/yeet-src/omarchy-yeet-ai --enable
 ```
 
-Other ways to install yeet are in the
+Then run the pinned installer from the plugin checkout and log in. The
+installer fetches a fixed yeet release for your architecture, checks the
+package's sha256 and signature against values written in the script, installs
+it and starts the daemon:
+
+```sh
+sh ~/.config/omarchy/plugins/cx.yeet.yeet-ai/install-yeet.sh
+yeet login
+```
+
+To track new yeet releases along with the rest of the system, use the AUR
+package [`yeet-bin`](https://aur.archlinux.org/packages/yeet-bin) instead. It
+also pins a release and checks its sha256 and GPG signature before installing:
+
+```sh
+yay -S yeet-bin
+sudo systemctl enable --now yeetd
+yeet login
+```
+
+Other package managers are covered in the
 [manual installation guide](https://yeet.cx/docs/install/manual-installation?utm_source=github&utm_medium=readme&utm_campaign=omarchy-yeet-ai).
 
 The model is chosen from a pull-down in the panel — `claude-opus-5` by
