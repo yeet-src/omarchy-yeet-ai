@@ -76,7 +76,7 @@ Panel {
       Button {
         visible: section.copyable
         text: section.copied ? "copied" : "copy"
-        foreground: Color.muted
+        foreground: Color.popups.text
         fontSize: Style.font.bodySmall
         horizontalPadding: Style.spacing.xs
         verticalPadding: 0
@@ -171,7 +171,7 @@ Panel {
             text: help.trouble === "missing" ? "yeet is not installed"
                 : help.trouble === "daemon" ? "yeetd is not running"
                 : "Waiting for the isolate…"
-            color: help.trouble === "" ? Color.muted : Color.popups.text
+            color: Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.subtitle
             font.bold: help.trouble !== ""
@@ -185,7 +185,7 @@ Panel {
             textFormat: TextEdit.PlainText
             wrapMode: TextEdit.WordWrap
             text: "yeet-ai draws from a yeet isolate, so it needs yeet installed and its daemon running."
-            color: Color.muted
+            color: Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
           }
