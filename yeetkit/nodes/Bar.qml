@@ -27,8 +27,8 @@ WidgetButton {
 
   property real heat: -1
   property string image: ""
-  /* Under the plugin folder, which is two up from nodes/. */
-  readonly property url imageUrl: image !== "" ? Qt.resolvedUrl("../../" + image) : ""
+  /* Under the plugin folder, and nowhere else: the client checks. */
+  readonly property url imageUrl: image !== "" && client ? client.assetUrl(image) : ""
 
   labelVisible: image === ""
   hasVisualContent: text !== "" || image !== ""

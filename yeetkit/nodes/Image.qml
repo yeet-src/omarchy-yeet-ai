@@ -1,6 +1,7 @@
 import QtQuick
 
-// <image src size>
+// <image src size> — `src` is a data: image or a file under the plugin
+// folder; the client refuses anything else (see Yeetkit.assetUrl).
 Image {
   id: root
   property var client: null
@@ -11,7 +12,7 @@ Image {
   property string src: ""
   property int size: 0
 
-  source: src
+  source: client ? client.assetUrl(src) : ""
   width: size > 0 ? size : implicitWidth
   height: size > 0 ? size : implicitHeight
   fillMode: Image.PreserveAspectFit

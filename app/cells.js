@@ -10,6 +10,12 @@
  * Model code runs on the host. It is confined to the isolate and to
  * this scope, with a timeout on the body itself, but it is not
  * sandboxed beyond that: the panel keeps a `src` toggle for a reason.
+ * What it cannot do is speak to the shell as if it were the runtime:
+ * the shell takes any OSC frame on the isolate's tty as a patch, so
+ * the yeetkit entry seals the `tty` global and the console so that
+ * nothing they are handed can carry a frame's delimiters, before the
+ * page loads (yeetkit-omarchy's src/isolate/harden.js), and the shell
+ * side refuses an image src it would have to fetch.
  *
  * Nothing here may leak an unhandled rejection — the host answers one
  * by killing the isolate, which would take every chart with it — so

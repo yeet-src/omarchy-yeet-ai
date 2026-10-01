@@ -56,6 +56,38 @@ Item {
 
   readonly property var regionTags: ["bar", "panel"]
 
+  // ---- what a patch may ask of the shell ----------------------------------
+
+  /* The plugin's own folder: one above yeetkit/. Files a node shows
+   * come from here and nowhere else. */
+  readonly property url pluginRoot: Qt.resolvedUrl("../")
+
+  /* Frames are not authenticated. Anything in the isolate that can
+   * write to its tty — the app, a library, code the app evaluates —
+   * can produce a patch, so a patch never gets to make the shell act
+   * outside this process: no network, no file off the plugin folder.
+   * A `src` is therefore a data: image or a relative path under the
+   * plugin; everything else becomes an empty source, with a warning
+   * in the shell's log. Percent-escapes and `..` segments are refused
+   * before resolving rather than normalised, so what the file system
+   * sees is what was checked. */
+  function assetUrl(src) {
+    var text = src === undefined || src === null ? "" : String(src)
+    if (text === "") return ""
+    if (/^data:image\/[a-z0-9.+-]+[;,]/i.test(text)) return text
+    var reason = null
+    if (/^[a-z][a-z0-9+.-]*:/i.test(text)) reason = "a URL with a scheme"
+    else if (text.charAt(0) === "/" || text.charAt(0) === "\\" || text.indexOf("\\") >= 0) reason = "an absolute path"
+    else if (text.indexOf("%") >= 0 || /(^|\/)\.\.(\/|$)/.test(text)) reason = "a path that leaves the plugin folder"
+    if (reason === null) {
+      var resolved = String(Qt.resolvedUrl("../" + text))
+      if (resolved.indexOf(String(pluginRoot)) === 0) return resolved
+      reason = "a path that leaves the plugin folder"
+    }
+    console.warn("yeetkit: src " + JSON.stringify(text.slice(0, 80)) + " refused: " + reason + "; only data: images and files under the plugin folder are shown")
+    return ""
+  }
+
   // ---- the wire --------------------------------------------------------
 
   property var lane: null
