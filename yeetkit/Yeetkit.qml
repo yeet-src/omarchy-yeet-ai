@@ -14,10 +14,11 @@ import "Protocol.js" as Protocol
  *
  * Where the browser client creates DOM elements by tag, this one
  * creates a QML component per tag from `nodes/`. A node component is
- * an ordinary Item with three conventions: a `slot` Item that its
+ * an ordinary Item with four conventions: a `slot` Item that its
  * children are reparented into (null for a leaf), plain properties
- * named as the JSX attributes are, and an `ev(type, payload)` signal
- * for what the user did. Text nodes have no item of their own: their
+ * named as the JSX attributes are, an `attrs` list naming which of
+ * them a patch may set, and an `ev(type, payload)` signal for what
+ * the user did. Text nodes have no item of their own: their
  * parent's `text` property is the join of its text children, which is
  * how `<button>Save {n()}</button>` patches one segment.
  */
@@ -305,9 +306,35 @@ Item {
     }
   }
 
+  /* Attributes every node takes: the Item geometry a layout reaches
+   * for. Anything else a node has to list in its `attrs`. */
+  readonly property var commonAttrs: ["visible", "width", "height"]
+  property var refusedAttrs: ({})
+
+  /* A patch sets only the attributes a node lists — its `attrs`, plus
+   * the common ones. A node is a QML Item with everything it inherits,
+   * and a patch that could reach any property by name could set one
+   * the node never meant to expose: `source` on <image>, say, where an
+   * imperative assignment replaces the binding that runs `src`
+   * through assetUrl with a bare value the guard never saw. */
+  function allowsAttr(rec, name) {
+    if (commonAttrs.indexOf(name) >= 0) return true
+    var attrs = rec.item ? rec.item.attrs : undefined
+    return attrs !== undefined && attrs !== null && attrs.indexOf(name) >= 0
+  }
+
   function setAttr(rec, name, value) {
     var item = rec.item
-    if (!item || !(name in item)) return
+    if (!item) return
+    if (!allowsAttr(rec, name)) {
+      var key = rec.tag + " " + name
+      if (!refusedAttrs[key]) {
+        refusedAttrs[key] = true
+        console.warn("yeetkit: <" + rec.tag + " " + name + ">: not an attribute of <" + rec.tag + ">; refused")
+      }
+      return
+    }
+    if (!(name in item)) return
     if (!(name in rec.defaults)) rec.defaults[name] = item[name]
     var next = value === null || value === undefined ? rec.defaults[name] : coerce(rec.defaults[name], value)
     try {
