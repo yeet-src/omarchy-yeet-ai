@@ -8,6 +8,8 @@ Rectangle {
   property int nodeId: 0
   property Item slot: inner
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: ["pad", "gap", "fill"]
 
   property int pad: Style.spacing.md
   property int gap: Style.spacing.sm

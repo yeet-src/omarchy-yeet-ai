@@ -18,6 +18,8 @@ Text {
   property int nodeId: 0
   property Item slot: null
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: ["tone", "size", "bold", "fill", "wrap", "align", "color"]
 
   property string tone: "fg"
   property string size: "body"

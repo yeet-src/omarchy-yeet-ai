@@ -8,6 +8,8 @@ Row {
   property int nodeId: 0
   property Item slot: root
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: ["gap", "fill"]
 
   property int gap: Style.spacing.sm
   property bool fill: false

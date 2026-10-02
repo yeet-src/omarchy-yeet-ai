@@ -7,6 +7,8 @@ Column {
   property int nodeId: 0
   property Item slot: root
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: []
 
   readonly property bool inRow: parent ? parent.axis === "x" : false
   anchors.left: parent && !inRow ? parent.left : undefined

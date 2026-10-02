@@ -14,8 +14,12 @@
  * the shell takes any OSC frame on the isolate's tty as a patch, so
  * the yeetkit entry seals the `tty` global and the console so that
  * nothing they are handed can carry a frame's delimiters, before the
- * page loads (yeetkit-omarchy's src/isolate/harden.js), and the shell
- * side refuses an image src it would have to fetch.
+ * page loads (yeetkit-omarchy's src/isolate/harden.js). The seal and
+ * the runtime's frame encoder use only built-ins taken as they loaded,
+ * so a body that replaces `String.prototype.replace` or
+ * `JSON.stringify` changes nothing they do. And the shell side sets
+ * only the attributes a node lists — `source` on an <image> is not
+ * one, `src` is, and `src` is refused when it would have to fetch.
  *
  * Nothing here may leak an unhandled rejection — the host answers one
  * by killing the isolate, which would take every chart with it — so

@@ -17,6 +17,8 @@ Text {
   property int nodeId: 0
   property Item slot: null
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: ["href", "size", "fill", "align", "links"]
 
   property string href: ""
   property string links: ""

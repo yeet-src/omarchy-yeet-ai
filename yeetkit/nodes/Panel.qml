@@ -23,6 +23,8 @@ Item {
   property int nodeId: 0
   property Item slot: inner
   signal ev(string type, var payload)
+  /** What a patch may set here; see Yeetkit.setAttr. */
+  readonly property var attrs: ["contentWidth", "gap", "open"]
 
   property int contentWidth: Style.space(280)
   property int gap: Style.spacing.md
